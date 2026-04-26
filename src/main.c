@@ -1,5 +1,4 @@
 #include "tokenizer.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,17 +8,26 @@
 #include <unistd.h>
 
 extern char **environ;
-const char *builtins[] = {"echo", "type", "exit", "cd", "printf", "pwd",};
 
-int is_builtin(char *arg) {
-  for (int i = 0; i < sizeof(builtins)/sizeof(builtins[0]); i++) {
+#define COMMAND_SIZE 1024
+#define MAX_ARGS 32
+
+typedef enum {
+  SHELL_CONTINUE,
+  SHELL_EXIT
+} ShellStatus;
+
+static const char *builtins[] = {"echo", "type", "exit", "cd", "printf", "pwd",};
+
+static int is_builtin(const char *arg) {
+  for (size_t i = 0; i < sizeof(builtins)/sizeof(builtins[0]); i++) {
     if (strcmp(arg, builtins[i]) == 0)
       return 1;
   }
   return 0;
 }
 
-int is_inpath(char *path) {
+static int is_inpath(const char *path) {
   struct stat st;
   if (stat(path, &st) == 0) {
     // Permission check
@@ -29,7 +37,7 @@ int is_inpath(char *path) {
   return 0;
 }
 
-int parse_path(char *pathbuf, char *arg) {
+static int parse_path(char *pathbuf, size_t pathbuf_size, const char *arg) {
   const char *path = getenv("PATH");
   if (!path || !arg) return 0;
 
@@ -39,7 +47,7 @@ int parse_path(char *pathbuf, char *arg) {
 
   int found = 0;
   while (dir != NULL) {
-    snprintf(pathbuf, 1024, "%s/%s", dir, arg);
+    snprintf(pathbuf, pathbuf_size, "%s/%s", dir, arg);
     if (is_inpath(pathbuf) == 1) {
       found = 1;
       break;
@@ -51,9 +59,7 @@ int parse_path(char *pathbuf, char *arg) {
   return found;
 }
 
-
-
-int run_program(char *argv[]) {
+static int run_program(char *argv[]) {
   pid_t pid;
   int status;
   int rc = posix_spawnp(&pid, argv[0], NULL, NULL, argv, environ);
@@ -63,7 +69,35 @@ int run_program(char *argv[]) {
   return rc;
 }
 
-int builtin_cd(char *pathbuf, char *arg) {
+static void builtin_echo(int argc, char *argv[]) {
+  for (int i = 1; i < argc; i++) {
+    if (i > 1)
+      printf(" ");
+    printf("%s", argv[i]);
+  }
+  printf("\n");
+}
+
+static void builtin_type(char *pathbuf, size_t pathbuf_size, int argc, char *argv[]) {
+  if (argc < 2) return;
+
+  char *arg = argv[1];
+  if (is_builtin(arg))
+    printf("%s is a shell builtin\n", arg);
+  else if (parse_path(pathbuf, pathbuf_size, arg))
+    printf("%s is %s\n", arg, pathbuf);
+  else
+    printf("%s: not found\n", arg);
+}
+
+static void builtin_pwd(void) {
+  char cwd[COMMAND_SIZE];
+
+  getcwd(cwd, sizeof(cwd));
+  printf("%s\n", cwd);
+}
+
+static int builtin_cd(char *pathbuf, size_t pathbuf_size, char *arg) {
   const char *home = getenv("HOME");
   if (!home) return 0;
 
@@ -74,7 +108,7 @@ int builtin_cd(char *pathbuf, char *arg) {
     if (arg[1] == '\0')
       arg = (char*)home;
     else if (arg[1] == '/') { // path of the form ~/...
-      snprintf(pathbuf, 1024, "%s%s", home, arg + 1);
+      snprintf(pathbuf, pathbuf_size, "%s%s", home, arg + 1);
       arg = pathbuf;
     }
   }
@@ -84,64 +118,62 @@ int builtin_cd(char *pathbuf, char *arg) {
   return 1;
 }
 
-int main(int argc, char *argv[]) {
-  char command[1024];
-  char pathbuf[1024];
-  char cwd[1024];
+static ShellStatus execute_command(int argc, char *argv[]) {
+  char pathbuf[COMMAND_SIZE];
+  char *command = argv[0];
+
+  if (command == NULL)
+    return SHELL_CONTINUE;
+
+  if (strcmp(command, "exit") == 0)
+    return SHELL_EXIT;
+
+  if (strcmp(command, "echo") == 0)
+    builtin_echo(argc, argv);
+  else if (strcmp(command, "type") == 0)
+    builtin_type(pathbuf, sizeof(pathbuf), argc, argv);
+  else if (strcmp(command, "pwd") == 0)
+    builtin_pwd();
+  else if (strcmp(command, "cd") == 0) {
+    if (builtin_cd(pathbuf, sizeof(pathbuf), argv[1]) == 0)
+      printf("%s: %s: No such file or directory\n", command, argv[1]);
+  }
+  else {
+    if (run_program(argv) != 0)
+      printf("%s: command not found\n", command);
+  }
+
+  return SHELL_CONTINUE;
+}
+
+static int read_command(char *command, size_t command_size) {
+  printf("$ ");
+  if (!fgets(command, command_size, stdin)) return 0;
+  command[strcspn(command, "\r\n")] = '\0'; // Strip off newline
+
+  return 1;
+}
+
+static void run_shell(void) {
+  char command[COMMAND_SIZE];
+
+  while (1) {
+    if (!read_command(command, sizeof(command))) break;
+
+    char *args[MAX_ARGS];
+    int arg_count = tokenize_arg(command, args, MAX_ARGS);
+    if (arg_count == 0) continue;
+
+    if (execute_command(arg_count, args) == SHELL_EXIT)
+      break;
+  }
+}
+
+int main(void) {
   // Flush after every printf
   setbuf(stdout, NULL);
 
-  while (1) {
-    printf("$ ");
-    if(!fgets(command, sizeof(command), stdin)) break;
-    command[strcspn(command, "\r\n")] = '\0'; // Strip off newline
-
-    char *args[32];
-    int n = tokenize_arg(command, args, 32);
-    if (n == 0) continue;
-
-    char *builtin = args[0];
-    
-    // Empty command
-    if (builtin == NULL) 
-      continue;
-
-    if (strcmp(builtin, "exit") == 0) 
-      break;
-    else if (strcmp(builtin, "echo") == 0) {
-      for (int i = 1; i < n; i++) {
-        if (i > 1) 
-          printf(" ");
-        printf("%s", args[i]);
-      }
-      printf("\n");
-    }
-    else if (strcmp(builtin, "type") == 0) {
-      if (n < 2) continue;
-
-      char *arg = args[1];
-      if (is_builtin(arg))
-        printf("%s is a shell builtin\n", arg);
-      else if (parse_path(pathbuf, arg))
-        printf("%s is %s\n", arg, pathbuf);
-      else 
-        printf("%s: not found\n", arg);
-    }
-    else if (strcmp(builtin, "pwd") == 0) {
-      getcwd(cwd, sizeof(cwd));
-      printf("%s\n", cwd);
-    }
-    else if (strcmp(builtin, "cd") == 0) {
-      char *arg = args[1];
-      
-      if (builtin_cd(pathbuf, arg) == 0)
-        printf("%s: %s: No such file or directory\n", builtin, arg);
-    }
-    else {
-      if (run_program(args) != 0)
-        printf("%s: command not found\n", builtin);
-    }
-  }
+  run_shell();
 
   return 0;
 }
