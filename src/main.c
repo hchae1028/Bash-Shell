@@ -6,6 +6,7 @@
 #include <sys/wait.h>
 #include <spawn.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 extern char **environ;
 
@@ -67,7 +68,7 @@ static int parse_path(char *pathbuf, size_t pathbuf_size, const char *arg) {
   char *path_copy = strdup(path);
   char *saveptr = NULL;
   char *dir = strtok_r(path_copy, ":", &saveptr);
-  
+
   // Look for the path with the command argument
   int found = 0;
   while (dir != NULL) {
@@ -84,15 +85,233 @@ static int parse_path(char *pathbuf, size_t pathbuf_size, const char *arg) {
 }
 
 /**
+ * @brief Checks whether an argument is a stdout redirection operator.
+ *        Supports >, 1>, >>, and 1>>.
+ *        Returns 1 if it is a stdout redirect, 0 otherwise.
+ * @param arg (const char *) Argument to check.
+ * @param append (int *) Stores whether the redirect should append.
+ */
+static int is_stdout_redir(const char *arg, int *append) {
+  if (strcmp(arg, ">") == 0 || strcmp(arg, "1>") == 0) {
+    *append = 0;
+    return 1;
+  }
+  if (strcmp(arg, ">>") == 0 || strcmp(arg, "1>>") == 0) {
+    *append = 1;
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * @brief Checks whether an argument is a stderr redirection operator.
+ *        Supports 2> and 2>>.
+ *        Returns 1 if it is a stderr redirect, 0 otherwise.
+ * @param arg (const char *) Argument to check.
+ * @param append (int *) Stores whether the redirect should append.
+ */
+static int is_stderr_redir(const char *arg, int *append) {
+  if (strcmp(arg, "2>") == 0) {
+    *append = 0;
+    return 1;
+  }
+  if (strcmp(arg, "2>>") == 0) {
+    *append = 1;
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * @brief Extracts stdout redirection from an argument list.
+ *        Removes the redirect operator and filename from argv.
+ *        Returns the new argument count, or -1 if the filename is missing.
+ * @param argv (char *[]) Argument list to scan and modify.
+ * @param out_file (char **) Stores the stdout redirection filename.
+ * @param err_file (char **) Stores the stderr redirection filename.
+ * @param out_append (int *) Stores whether stdout should append to the file.
+ * @param err_append (int *) Stores whether stderr should append to the file.
+ */
+static int extract_redirs(char *argv[], char **out_file, char **err_file,
+                          int *out_append, int *err_append) {
+  *out_file = NULL;
+  *err_file = NULL;
+  *out_append = 0;
+  *err_append = 0;
+
+  int argc = 0;
+  for (int i = 0; argv[i] != NULL; i++) {
+    int redir_append;
+
+    if (is_stdout_redir(argv[i], &redir_append)) {
+      if (argv[i + 1] == NULL)
+        return -1;
+
+      *out_file = argv[i + 1];
+      *out_append = redir_append;
+      i++;
+      continue;
+    }
+    if (is_stderr_redir(argv[i], &redir_append)) {
+      if (argv[i + 1] == NULL)
+        return -1;
+
+      *err_file = argv[i + 1];
+      *err_append = redir_append;
+      i++;
+      continue;
+    }
+    argv[argc++] = argv[i];
+  }
+
+  argv[argc] = NULL;
+  return argc;
+}
+
+/**
+ * @brief Redirects the shell process stdout to a file.
+ *        Returns a saved copy of stdout, or -1 if redirection fails.
+ * @param out_file (const char *) File to redirect stdout into.
+ * @param append (int) Whether to append instead of truncating the file.
+ */
+static int redirect_stdout(const char *out_file, int append) {
+  int flags = O_WRONLY | O_CREAT;
+  int saved_stdout = dup(STDOUT_FILENO);
+  if (saved_stdout == -1)
+    return -1;
+
+  if (append)
+    flags |= O_APPEND;
+  else
+    flags |= O_TRUNC;
+
+  int fd = open(out_file, flags, 0644);
+  if (fd == -1) {
+    close(saved_stdout);
+    return -1;
+  }
+
+  if (dup2(fd, STDOUT_FILENO) == -1) {
+    close(fd);
+    close(saved_stdout);
+    return -1;
+  }
+
+  close(fd);
+  return saved_stdout;
+}
+
+/**
+ * @brief Redirects the shell process stderr to a file.
+ *        Returns a saved copy of stderr, or -1 if redirection fails.
+ * @param err_file (const char *) File to redirect stderr into.
+ * @param append (int) Whether to append instead of truncating the file.
+ */
+static int redirect_stderr(const char *err_file, int append) {
+  int flags = O_WRONLY | O_CREAT;
+  int saved_stderr = dup(STDERR_FILENO);
+  if (saved_stderr == -1)
+    return -1;
+
+  if (append)
+    flags |= O_APPEND;
+  else
+    flags |= O_TRUNC;
+
+  int fd = open(err_file, flags, 0644);
+  if (fd == -1) {
+    close(saved_stderr);
+    return -1;
+  }
+
+  if (dup2(fd, STDERR_FILENO) == -1) {
+    close(fd);
+    close(saved_stderr);
+    return -1;
+  }
+
+  close(fd);
+  return saved_stderr;
+}
+
+/**
+ * @brief Restores stdout after temporary redirection.
+ * @param saved_stdout (int) Saved stdout file descriptor from redirect_stdout.
+ */
+static void restore_stdout(int saved_stdout) {
+  fflush(stdout);
+  dup2(saved_stdout, STDOUT_FILENO);
+  close(saved_stdout);
+}
+
+/**
+ * @brief Restores stderr after temporary redirection.
+ * @param saved_stderr (int) Saved stderr file descriptor from redirect_stderr.
+ */
+static void restore_stderr(int saved_stderr) {
+  fflush(stderr);
+  dup2(saved_stderr, STDERR_FILENO);
+  close(saved_stderr);
+}
+
+/**
  * @brief Runs an external program using posix_spawnp.
  *        Waits for the child process to finish before returning.
  *        Returns 0 if the program starts successfully, nonzero otherwise.
  * @param argv (char *[]) Argument list where argv[0] is the command name.
+ * @param out_file (const char *) File to redirect stdout into, or NULL.
+ * @param err_file (const char *) File to redirect stderr into, or NULL.
+ * @param out_append (int) Whether stdout should append instead of truncating.
+ * @param err_append (int) Whether stderr should append instead of truncating.
  */
-static int run_program(char *argv[]) {
+static int run_program(char *argv[], const char *out_file, const char *err_file,
+                       int out_append, int err_append) {
   pid_t pid;
   int status;
-  int rc = posix_spawnp(&pid, argv[0], NULL, NULL, argv, environ);
+  int rc;
+  posix_spawn_file_actions_t actions;
+  posix_spawn_file_actions_t *actions_ptr = NULL;
+
+  if (out_file || err_file) {
+    rc = posix_spawn_file_actions_init(&actions);
+    if (rc != 0)
+      return rc;
+
+    if (out_file) {
+      int out_flags = O_WRONLY | O_CREAT;
+      if (out_append)
+        out_flags |= O_APPEND;
+      else
+        out_flags |= O_TRUNC;
+
+      rc = posix_spawn_file_actions_addopen(&actions, STDOUT_FILENO, out_file, out_flags, 0644);
+      if (rc != 0) {
+        posix_spawn_file_actions_destroy(&actions);
+        return rc;
+      }
+    }
+
+    if (err_file) {
+      int err_flags = O_WRONLY | O_CREAT;
+      if (err_append)
+        err_flags |= O_APPEND;
+      else
+        err_flags |= O_TRUNC;
+
+      rc = posix_spawn_file_actions_addopen(&actions, STDERR_FILENO, err_file, err_flags, 0644);
+      if (rc != 0) {
+        posix_spawn_file_actions_destroy(&actions);
+        return rc;
+      }
+    }
+
+    actions_ptr = &actions;
+  }
+
+  rc = posix_spawnp(&pid, argv[0], actions_ptr, NULL, argv, environ);
+
+  if (actions_ptr != NULL)
+    posix_spawn_file_actions_destroy(&actions);
 
   if (rc == 0)
     waitpid(pid, &status, 0);
@@ -180,16 +399,40 @@ static int builtin_cd(char *pathbuf, size_t pathbuf_size, char *arg) {
  *        Returns SHELL_EXIT when the shell should stop, SHELL_CONTINUE otherwise.
  * @param argc (int) Number of command line arguments.
  * @param argv (char *[]) Tokenized command argument list.
+ * @param out_file (char *) File to redirect stdout into, or NULL.
+ * @param err_file (char *) File to redirect stderr into, or NULL.
+ * @param out_append (int) Whether stdout should append instead of truncating.
+ * @param err_append (int) Whether stderr should append instead of truncating.
  */
-static ShellStatus execute_command(int argc, char *argv[]) {
+static ShellStatus execute_command(int argc, char *argv[], char *out_file, char *err_file,
+                                   int out_append, int err_append) {
   char pathbuf[COMMAND_SIZE];
   char *command = argv[0];
+  int saved_stdout = -1;
+  int saved_stderr = -1;
 
   if (command == NULL)
     return SHELL_CONTINUE;
 
   if (strcmp(command, "exit") == 0)
     return SHELL_EXIT;
+
+  if (out_file && is_builtin(command)) {
+    saved_stdout = redirect_stdout(out_file, out_append);
+    if (saved_stdout == -1) {
+      perror(out_file);
+      return SHELL_CONTINUE;
+    }
+  }
+  if (err_file && is_builtin(command)) {
+    saved_stderr = redirect_stderr(err_file, err_append);
+    if (saved_stderr == -1) {
+      if (saved_stdout != -1)
+        restore_stdout(saved_stdout);
+      perror(err_file);
+      return SHELL_CONTINUE;
+    }
+  }
 
   if (strcmp(command, "echo") == 0)
     builtin_echo(argc, argv);
@@ -202,10 +445,14 @@ static ShellStatus execute_command(int argc, char *argv[]) {
       printf("%s: %s: No such file or directory\n", command, argv[1]);
   }
   else {
-    if (run_program(argv) != 0)
+    if (run_program(argv, out_file, err_file, out_append, err_append) != 0)
       printf("%s: command not found\n", command);
   }
 
+  if (saved_stdout != -1)
+    restore_stdout(saved_stdout);
+  if (saved_stderr != -1)
+    restore_stderr(saved_stderr);
   return SHELL_CONTINUE;
 }
 
@@ -238,7 +485,15 @@ static void run_shell(void) {
     int arg_count = tokenize_arg(command, args, MAX_ARGS);
     if (arg_count == 0) continue;
 
-    if (execute_command(arg_count, args) == SHELL_EXIT)
+    char *out_file, *err_file;
+    int out_append, err_append;
+    arg_count = extract_redirs(args, &out_file, &err_file, &out_append, &err_append);
+    if (arg_count == -1) {
+      fprintf(stderr, "syntax error: expected filename after redirection\n");
+      continue;
+    }
+
+    if (execute_command(arg_count, args, out_file, err_file, out_append, err_append) == SHELL_EXIT)
       break;
   }
 }
