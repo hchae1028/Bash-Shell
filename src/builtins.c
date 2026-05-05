@@ -1,11 +1,17 @@
 #include "builtins.h"
 #include "shell.h"
+#include "trie.h"
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
-const char *builtins[] = {"echo", "type", "exit", "cd", "printf", "pwd",};
+const char *builtins[] = {"echo", "type", "exit", "cd", "printf", "pwd", ":", ".", "break",
+                        "continue", "eval", "exec", "export", "true", "false", "getopts", "hash"
+                        "readonly", "return", "shift", "test", "trap", "times", "umask", "unset"
+                        "alias", "bind", "builtin", "caller", "command", "declare", "enable", "let"
+                        "logout", "local", "mapfile", "read", "readarray", "source", "typeset"
+                        "ulimit", "unalias"};
 
 int is_builtin(const char *command);
 void builtin_echo(int argc, char *argv[]);
@@ -17,7 +23,7 @@ static int parse_path(char *pathbuf, size_t pathbuf_size, const char *arg);
 
 /**
  * @brief Checks whether a given command argument is a shell builtin.
- *        Returns 1 if it is a shell builtin, 0 otherwise.
+ *        Returns 1 if it is a shell builtin, or 0 otherwise.
  * @param arg (const char *) Command line argument to be checked.
  */
 int is_builtin(const char *arg) {
@@ -101,6 +107,16 @@ int builtin_cd(char *pathbuf, size_t pathbuf_size, char *arg) {
   if (chdir(arg) != 0)
     return 0;
   return 1;
+}
+
+/**
+ * @brief Inserts all shell builtin command names into a Trie.
+ * @param root (Trie *) Trie object used for builtin autocomplete.
+ */
+void build_builtin_trie(Trie *root) {
+    for (size_t i = 0; i < sizeof(builtins)/sizeof(builtins[0]); i++) {
+        trie_insert(root, builtins[i]);
+    }
 }
 
 /**

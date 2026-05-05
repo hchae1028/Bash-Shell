@@ -1,6 +1,7 @@
 #ifndef BUILTINS_H
 #define BUILTINS_H
 
+#include "trie.h"
 #include <stdlib.h>
 
 /**
@@ -43,5 +44,11 @@ void builtin_pwd(void);
  * @param arg (char *) Directory path argument passed to cd.
  */
 int builtin_cd(char *pathbuf, size_t pathbuf_size, char *arg);
+
+/**
+ * @brief Inserts all shell builtin command names into a Trie.
+ * @param root (Trie *) Trie object used for builtin autocomplete.
+ */
+void build_builtin_trie(Trie *root);
 
 #endif
