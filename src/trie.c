@@ -5,8 +5,7 @@
 #define ALPHABET_SIZE 26
 
 static int char_index(char c);
-static void find_matches(Trie *obj, char *buffer, size_t depth, size_t buffer_size,
-                         char *match, size_t match_size, int *count);
+static void find_matches(Trie *obj, char *buffer, size_t depth, CompletionResult *result);
 
 /**
  * @brief   Creates a new Trie object by memory allocation.
@@ -48,7 +47,7 @@ int trie_search(Trie *obj, const char *word) {
         int index = char_index(word[i]);
         if (index == -1)
             return 0;
-        if (!curr->children[index]) 
+        if (!curr->children[index])
             return 0;
         curr = curr->children[index];
     }
@@ -75,29 +74,27 @@ int trie_starts_with(Trie *obj, const char *prefix) {
 }
 
 /**
- * @brief   Finds whether exactly one word in the Trie starts with a prefix.
- *          Stores that word in match when exactly one match exists.
- *          Returns 0 for no matches, 1 for one match, or 2 for multiple matches.
+ * @brief   Collects words in the Trie that start with a given prefix.
+ *          Stores up to MAX_MATCHES matches and returns the number found.
  * @param   obj (Trie *) A Trie object to be searched.
- * @param   prefix (const char *) A prefix string to complete.
- * @param   match (char *) Buffer used to store the unique match.
- * @param   match_size (size_t) Size of the match buffer.
+ * @param   prefix (const char *) A prefix string to search for.
+ * @param   result (CompletionResult *) Stores matching words and their count.
  */
-int trie_complete_unique(Trie *obj, const char *prefix, char *match, size_t match_size) {
+int trie_collect_matches(Trie *obj, const char *prefix, CompletionResult *result) {
     Trie *curr = obj;
     size_t depth = 0;
-    int count = 0;
 
-    if (obj == NULL || prefix == NULL || match == NULL || match_size == 0)
+    if (obj == NULL || prefix == NULL || result == NULL)
         return 0;
 
-    char buffer[match_size];
+    char buffer[MAX_MATCH_LENGTH];
+    result->count = 0;
 
     for (size_t i = 0; prefix[i] != '\0'; i++) {
         int index = char_index(prefix[i]);
         if (index == -1 || curr->children[index] == NULL)
             return 0;
-        if (depth + 1 >= match_size)
+        if (depth + 1 >= MAX_MATCH_LENGTH)
             return 0;
 
         buffer[depth++] = prefix[i];
@@ -105,10 +102,8 @@ int trie_complete_unique(Trie *obj, const char *prefix, char *match, size_t matc
     }
     buffer[depth] = '\0';
 
-    find_matches(curr, buffer, depth, match_size, match, match_size, &count);
-    if (count > 1)
-        return 2;
-    return count;
+    find_matches(curr, buffer, depth, result);
+    return result->count;
 }
 
 /**
@@ -137,36 +132,30 @@ static int char_index(char c) {
 
 /**
  * @brief Recursively counts words below a Trie node.
- *        Stores the first match found and stops once multiple matches are detected.
+ *        Stores each complete word it finds until MAX_MATCHES is reached.
  * @param obj (Trie *) Current Trie node to search from.
  * @param buffer (char *) Current word built during the recursive search.
  * @param depth (size_t) Current depth in the Trie.
- * @param buffer_size (size_t) Size of the buffer.
- * @param match (char *) Buffer used to store the first matching word.
- * @param match_size (size_t) Size of the match buffer.
- * @param count (int *) Number of matches found so far.
+ * @param result (CompletionResult *) Stores matching words and their count.
  */
-static void find_matches(Trie *obj, char *buffer, size_t depth, size_t buffer_size,
-                         char *match, size_t match_size, int *count) {
-    if (obj == NULL || *count > 1)
+static void find_matches(Trie *obj, char *buffer, size_t depth, CompletionResult *result) {
+    if (obj == NULL || result->count == MAX_MATCHES)
         return;
 
     if (obj->is_word) {
-        (*count)++;
-        if (*count == 1) {
-            strncpy(match, buffer, match_size - 1);
-            match[match_size - 1] = '\0';
-        }
+        strncpy(result->matches[result->count], buffer, MAX_MATCH_LENGTH - 1);
+        result->matches[result->count][MAX_MATCH_LENGTH - 1] = '\0';
+        (result->count)++;
     }
 
-    for (int i = 0; i < ALPHABET_SIZE && *count <= 1; i++) {
+    for (int i = 0; i < ALPHABET_SIZE && result->count < MAX_MATCHES; i++) {
         if (obj->children[i] == NULL)
             continue;
-        if (depth + 1 >= buffer_size)
+        if (depth + 1 >= MAX_MATCH_LENGTH)
             return;
 
         buffer[depth] = (char)('a' + i);
         buffer[depth + 1] = '\0';
-        find_matches(obj->children[i], buffer, depth + 1, buffer_size, match, match_size, count);
+        find_matches(obj->children[i], buffer, depth + 1, result);
     }
 }

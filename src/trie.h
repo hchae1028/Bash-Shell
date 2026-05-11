@@ -3,15 +3,26 @@
 
 #include <stddef.h>
 
+#define MAX_MATCHES 64
+#define MAX_MATCH_LENGTH 256
+
 /**
  * @brief   A Trie (prefix tree) structure to store strings.
  * @note    Shell builtins are stored to implement the autocomplete feature in this program.
  */
 typedef struct Trie {
     struct Trie *children[26];  /* An array for each letter from 'a' to 'z' */
-    int is_word;                /* 1 to indicate whether it is the end of a word 
+    int is_word;                /* 1 to indicate whether it is the end of a word
                                  * 0 otherwise */
 } Trie;
+
+/**
+ * @brief   Stores autocomplete matches found for a prefix.
+ */
+typedef struct {
+    int count;                                      /* Number of matches */
+    char matches[MAX_MATCHES][MAX_MATCH_LENGTH];    /* List of matching strings */
+} CompletionResult;
 
 /**
  * @brief   Create a new Trie object.
@@ -43,15 +54,13 @@ int trie_search(Trie *obj, const char *word);
 int trie_starts_with(Trie *obj, const char *prefix);
 
 /**
- * @brief   Finds whether exactly one word in the Trie starts with a prefix.
- *          Stores that word in match when exactly one match exists.
- *          Returns 0 for no matches, 1 for one match, or 2 for multiple matches.
+ * @brief   Collects words in the Trie that start with a given prefix.
+ *          Stores up to MAX_MATCHES matches and returns the number found.
  * @param   obj (Trie *) A Trie object to be searched.
- * @param   prefix (const char *) A prefix string to complete.
- * @param   match (char *) Buffer used to store the unique match.
- * @param   match_size (size_t) Size of the match buffer.
+ * @param   prefix (const char *) A prefix string to search for.
+ * @param   result (CompletionResult *) Stores matching words and their count.
  */
-int trie_complete_unique(Trie *obj, const char *prefix, char *match, size_t match_size);
+int trie_collect_matches(Trie *obj, const char *prefix, CompletionResult *result);
 
 /**
  * @brief   Frees a given Trie object from memory.

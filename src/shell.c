@@ -203,7 +203,7 @@ static int read_command_interactive(char *command, size_t command_size, Trie *bu
 
 /**
  * @brief Completes the current builtin command prefix when Tab is pressed.
- *        Adds the missing characters and a trailing space when there is exactly one match.
+ *        Completes a unique match, or lists possible matches when multiple exist.
  * @param command (char *) Current command input buffer.
  * @param length (size_t *) Current length of the command input buffer.
  * @param command_size (size_t) Size of the command buffer.
@@ -212,35 +212,48 @@ static int read_command_interactive(char *command, size_t command_size, Trie *bu
 static void handle_tab_completion(char *command, size_t *length, size_t command_size,
                                   Trie *builtin_trie) {
     char *prefix;
-    char match[COMMAND_SIZE];
 
     if (!get_builtin_prefix(command, *length, &prefix)) {
         printf("\a");
         return;
     }
 
-    int matches = trie_complete_unique(builtin_trie, prefix, match, sizeof(match));
-    if (matches != 1) {
+    CompletionResult result;
+    int matches = trie_collect_matches(builtin_trie, prefix, &result);
+    if (matches == 0) {
         printf("\a");
         return;
     }
+    else if (matches > 1) {
+        printf("\a\n");
 
-    size_t prefix_offset = (size_t)(prefix - command);
-    size_t prefix_length = *length - prefix_offset;
-    size_t match_length = strlen(match);
-
-    for (size_t i = prefix_length; i < match_length && *length + 1 < command_size; i++) {
-        command[*length] = match[i];
-        (*length)++;
-        command[*length] = '\0';
-        printf("%c", match[i]);
+        for (int i = 0; i < result.count; i++) {
+            printf("%s", result.matches[i]);
+            if (i + 1 < result.count)
+                printf("  ");
+        }
+        printf("\n$ %s", command);
+        return;
     }
+    else {
+        char *match = result.matches[0];
+        size_t prefix_offset = (size_t)(prefix - command);
+        size_t prefix_length = *length - prefix_offset;
+        size_t match_length = strlen(match);
 
-    if (*length + 1 < command_size) {
-        command[*length] = ' ';
-        (*length)++;
-        command[*length] = '\0';
-        printf(" ");
+        for (size_t i = prefix_length; i < match_length && *length + 1 < command_size; i++) {
+            command[*length] = match[i];
+            (*length)++;
+            command[*length] = '\0';
+            printf("%c", match[i]);
+        }
+
+        if (*length + 1 < command_size) {
+            command[*length] = ' ';
+            (*length)++;
+            command[*length] = '\0';
+            printf(" ");
+        }
     }
 }
 
