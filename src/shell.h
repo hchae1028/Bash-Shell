@@ -10,6 +10,6 @@
  * @brief Runs the main shell loop.
  *        Reads commands, tokenizes input, and executes each command.
  */
-void run_shell(Trie *builtin_trie);
+void run_shell(Trie *builtin_trie, Trie *path_trie);
 
 #endif

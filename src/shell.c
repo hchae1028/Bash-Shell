@@ -18,23 +18,22 @@ typedef enum {
     SHELL_EXIT          /* Shell exit code */
 } ShellStatus;
 
-void run_shell(Trie *builtin_trie);
 static ShellStatus execute_command(int argc, char *argv[], Redirection *redir);
-static int read_command(char *command, size_t command_size, Trie *builtin_trie);
-static int read_command_interactive(char *command, size_t command_size, Trie *builtin_trie);
+static int read_command(char *command, size_t command_size, Trie *builtin_trie, Trie *path_trie);
+static int read_command_interactive(char *command, size_t command_size, Trie *builtin_trie, Trie *path_trie);
 static void handle_tab_completion(char *command, size_t *length, size_t command_size,
-                                  Trie *builtin_trie);
+                                  Trie *builtin_trie, Trie *path_trie);
 static int get_builtin_prefix(char *command, size_t length, char **prefix);
 
 /**
  * @brief Runs the main shell loop.
  *        Reads commands, tokenizes input, and executes each command.
  */
-void run_shell(Trie *builtin_trie) {
+void run_shell(Trie *builtin_trie, Trie *path_trie) {
   char command[COMMAND_SIZE];
 
   while (1) {
-    if (!read_command(command, sizeof(command), builtin_trie))
+    if (!read_command(command, sizeof(command), builtin_trie, path_trie))
       break;
 
     char *args[MAX_ARGS];
@@ -120,11 +119,12 @@ static ShellStatus execute_command(int argc, char *argv[], Redirection *redir) {
  * @param command (char *) Buffer used to store the command line.
  * @param command_size (size_t) Size of the command buffer.
  * @param builtin_trie (Trie *) Trie used to autocomplete builtin command names.
+ * @param path_trie (Trie *) Trie used to autocomplete executable names from PATH.
  */
-static int read_command(char *command, size_t command_size, Trie *builtin_trie) {
+static int read_command(char *command, size_t command_size, Trie *builtin_trie, Trie *path_trie) {
     printf("$ ");
     if (isatty(STDIN_FILENO))
-        return read_command_interactive(command, command_size, builtin_trie);
+        return read_command_interactive(command, command_size, builtin_trie, path_trie);
 
     if (!fgets(command, command_size, stdin))
         return 0;
@@ -140,8 +140,9 @@ static int read_command(char *command, size_t command_size, Trie *builtin_trie) 
  * @param command (char *) Buffer used to store the command line.
  * @param command_size (size_t) Size of the command buffer.
  * @param builtin_trie (Trie *) Trie used to autocomplete builtin command names.
+ * @param path_trie (Trie *) Trie used to autocomplete executable names from PATH.
  */
-static int read_command_interactive(char *command, size_t command_size, Trie *builtin_trie) {
+static int read_command_interactive(char *command, size_t command_size, Trie *builtin_trie, Trie *path_trie) {
     struct termios original;
     struct termios raw;
     size_t length = 0;
@@ -175,7 +176,7 @@ static int read_command_interactive(char *command, size_t command_size, Trie *bu
         }
 
         if (c == '\t') {
-            handle_tab_completion(command, &length, command_size, builtin_trie);
+            handle_tab_completion(command, &length, command_size, builtin_trie, path_trie);
             continue;
         }
 
@@ -208,9 +209,10 @@ static int read_command_interactive(char *command, size_t command_size, Trie *bu
  * @param length (size_t *) Current length of the command input buffer.
  * @param command_size (size_t) Size of the command buffer.
  * @param builtin_trie (Trie *) Trie used to find builtin command completions.
+ * @param path_trie (Trie *) Trie used to find executable command completions.
  */
 static void handle_tab_completion(char *command, size_t *length, size_t command_size,
-                                  Trie *builtin_trie) {
+                                  Trie *builtin_trie, Trie *path_trie) {
     char *prefix;
 
     if (!get_builtin_prefix(command, *length, &prefix)) {
@@ -219,7 +221,9 @@ static void handle_tab_completion(char *command, size_t *length, size_t command_
     }
 
     CompletionResult result;
-    int matches = trie_collect_matches(builtin_trie, prefix, &result);
+    completion_result_init(&result);
+    trie_add_matches(builtin_trie, prefix, &result);
+    int matches = trie_add_matches(path_trie, prefix, &result);
     if (matches == 0) {
         printf("\a");
         return;

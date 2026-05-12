@@ -11,7 +11,7 @@
  * @note    Shell builtins are stored to implement the autocomplete feature in this program.
  */
 typedef struct Trie {
-    struct Trie *children[26];  /* An array for each letter from 'a' to 'z' */
+    struct Trie *children[65];  /* Supported command-name characters */
     int is_word;                /* 1 to indicate whether it is the end of a word
                                  * 0 otherwise */
 } Trie;
@@ -23,6 +23,12 @@ typedef struct {
     int count;                                      /* Number of matches */
     char matches[MAX_MATCHES][MAX_MATCH_LENGTH];    /* List of matching strings */
 } CompletionResult;
+
+/**
+ * @brief   Initializes a CompletionResult before collecting matches.
+ * @param   result (CompletionResult *) Result object to initialize.
+ */
+void completion_result_init(CompletionResult *result);
 
 /**
  * @brief   Create a new Trie object.
@@ -55,12 +61,12 @@ int trie_starts_with(Trie *obj, const char *prefix);
 
 /**
  * @brief   Collects words in the Trie that start with a given prefix.
- *          Stores up to MAX_MATCHES matches and returns the number found.
+ *          Adds up to MAX_MATCHES matches and returns the total number stored.
  * @param   obj (Trie *) A Trie object to be searched.
  * @param   prefix (const char *) A prefix string to search for.
  * @param   result (CompletionResult *) Stores matching words and their count.
  */
-int trie_collect_matches(Trie *obj, const char *prefix, CompletionResult *result);
+int trie_add_matches(Trie *obj, const char *prefix, CompletionResult *result);
 
 /**
  * @brief   Frees a given Trie object from memory.

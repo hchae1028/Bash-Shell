@@ -13,11 +13,6 @@ const char *builtins[] = {"echo", "type", "exit", "cd", "printf", "pwd", ":", ".
                         "logout", "local", "mapfile", "read", "readarray", "source", "typeset",
                         "ulimit", "unalias"};
 
-int is_builtin(const char *command);
-void builtin_echo(int argc, char *argv[]);
-void builtin_type(char *pathbuf, size_t pathbuf_size, int argc, char *argv[]);
-void builtin_pwd(void);
-int builtin_cd(char *pathbuf, size_t pathbuf_size, char *arg);
 static int is_inpath(const char *path);
 static int parse_path(char *pathbuf, size_t pathbuf_size, const char *arg);
 
@@ -111,7 +106,7 @@ int builtin_cd(char *pathbuf, size_t pathbuf_size, char *arg) {
 
 /**
  * @brief Inserts all shell builtin command names into a Trie.
- * @param root (Trie *) Trie object used for builtin autocomplete.
+ * @param root (Trie *) Trie object used for builtin autocompletion.
  */
 void build_builtin_trie(Trie *root) {
     for (size_t i = 0; i < sizeof(builtins)/sizeof(builtins[0]); i++) {

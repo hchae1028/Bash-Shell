@@ -2,10 +2,28 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define ALPHABET_SIZE 26
+#define LOWERCASE_COUNT 26
+#define UPPERCASE_COUNT 26
+#define DIGIT_COUNT 10
+#define SYMBOL_COUNT 3
+#define ALPHABET_SIZE (LOWERCASE_COUNT + UPPERCASE_COUNT + DIGIT_COUNT + SYMBOL_COUNT)
 
 static int char_index(char c);
+static char index_char(int index);
+static int completion_result_contains(CompletionResult *result, const char *word);
+static void completion_result_add(CompletionResult *result, const char *word);
 static void find_matches(Trie *obj, char *buffer, size_t depth, CompletionResult *result);
+
+/**
+ * @brief   Initializes a CompletionResult before collecting matches.
+ * @param   result (CompletionResult *) Result object to initialize.
+ */
+void completion_result_init(CompletionResult *result) {
+    if (result == NULL)
+        return;
+
+    result->count = 0;
+}
 
 /**
  * @brief   Creates a new Trie object by memory allocation.
@@ -75,12 +93,12 @@ int trie_starts_with(Trie *obj, const char *prefix) {
 
 /**
  * @brief   Collects words in the Trie that start with a given prefix.
- *          Stores up to MAX_MATCHES matches and returns the number found.
+ *          Adds up to MAX_MATCHES matches and returns the total number stored.
  * @param   obj (Trie *) A Trie object to be searched.
  * @param   prefix (const char *) A prefix string to search for.
  * @param   result (CompletionResult *) Stores matching words and their count.
  */
-int trie_collect_matches(Trie *obj, const char *prefix, CompletionResult *result) {
+int trie_add_matches(Trie *obj, const char *prefix, CompletionResult *result) {
     Trie *curr = obj;
     size_t depth = 0;
 
@@ -88,7 +106,6 @@ int trie_collect_matches(Trie *obj, const char *prefix, CompletionResult *result
         return 0;
 
     char buffer[MAX_MATCH_LENGTH];
-    result->count = 0;
 
     for (size_t i = 0; prefix[i] != '\0'; i++) {
         int index = char_index(prefix[i]);
@@ -120,14 +137,75 @@ void trie_free(Trie *obj) {
 }
 
 /**
- * @brief Converts a lowercase letter into a Trie child index.
- *        Returns -1 if the character is not in the range 'a' to 'z'.
+ * @brief Converts a supported command-name character into a Trie child index.
+ *        Returns -1 if the character is not supported.
  * @param c (char) Character to convert.
  */
 static int char_index(char c) {
-    if (c < 'a' || c > 'z')
-        return -1;
-    return c - 'a';
+    if (c >= 'a' && c <= 'z')
+        return c - 'a';
+    if (c >= 'A' && c <= 'Z')
+        return LOWERCASE_COUNT + (c - 'A');
+    if (c >= '0' && c <= '9')
+        return LOWERCASE_COUNT + UPPERCASE_COUNT + (c - '0');
+    if (c == '_')
+        return LOWERCASE_COUNT + UPPERCASE_COUNT + DIGIT_COUNT;
+    if (c == '-')
+        return LOWERCASE_COUNT + UPPERCASE_COUNT + DIGIT_COUNT + 1;
+    if (c == '.')
+        return LOWERCASE_COUNT + UPPERCASE_COUNT + DIGIT_COUNT + 2;
+    return -1;
+}
+
+/**
+ * @brief Converts a Trie child index back into its command-name character.
+ * @param index (int) Trie child index to convert.
+ */
+static char index_char(int index) {
+    if (index < LOWERCASE_COUNT)
+        return (char)('a' + index);
+    index -= LOWERCASE_COUNT;
+
+    if (index < UPPERCASE_COUNT)
+        return (char)('A' + index);
+    index -= UPPERCASE_COUNT;
+
+    if (index < DIGIT_COUNT)
+        return (char)('0' + index);
+    index -= DIGIT_COUNT;
+
+    if (index == 0)
+        return '_';
+    if (index == 1)
+        return '-';
+    return '.';
+}
+
+/**
+ * @brief Checks whether a completion result already contains a word.
+ * @param result (CompletionResult *) Result object to search.
+ * @param word (const char *) Word to check.
+ */
+static int completion_result_contains(CompletionResult *result, const char *word) {
+    for (int i = 0; i < result->count; i++) {
+        if (strcmp(result->matches[i], word) == 0)
+            return 1;
+    }
+    return 0;
+}
+
+/**
+ * @brief Adds one word to a completion result if there is room and no duplicate.
+ * @param result (CompletionResult *) Result object to update.
+ * @param word (const char *) Word to add.
+ */
+static void completion_result_add(CompletionResult *result, const char *word) {
+    if (result->count >= MAX_MATCHES || completion_result_contains(result, word))
+        return;
+
+    strncpy(result->matches[result->count], word, MAX_MATCH_LENGTH - 1);
+    result->matches[result->count][MAX_MATCH_LENGTH - 1] = '\0';
+    result->count++;
 }
 
 /**
@@ -142,11 +220,8 @@ static void find_matches(Trie *obj, char *buffer, size_t depth, CompletionResult
     if (obj == NULL || result->count == MAX_MATCHES)
         return;
 
-    if (obj->is_word) {
-        strncpy(result->matches[result->count], buffer, MAX_MATCH_LENGTH - 1);
-        result->matches[result->count][MAX_MATCH_LENGTH - 1] = '\0';
-        (result->count)++;
-    }
+    if (obj->is_word)
+        completion_result_add(result, buffer);
 
     for (int i = 0; i < ALPHABET_SIZE && result->count < MAX_MATCHES; i++) {
         if (obj->children[i] == NULL)
@@ -154,7 +229,7 @@ static void find_matches(Trie *obj, char *buffer, size_t depth, CompletionResult
         if (depth + 1 >= MAX_MATCH_LENGTH)
             return;
 
-        buffer[depth] = (char)('a' + i);
+        buffer[depth] = index_char(i);
         buffer[depth + 1] = '\0';
         find_matches(obj->children[i], buffer, depth + 1, result);
     }
