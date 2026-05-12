@@ -7,10 +7,10 @@
 #include <unistd.h>
 
 const char *builtins[] = {"echo", "type", "exit", "cd", "printf", "pwd", ":", ".", "break",
-                        "continue", "eval", "exec", "export", "true", "false", "getopts", "hash"
-                        "readonly", "return", "shift", "test", "trap", "times", "umask", "unset"
-                        "alias", "bind", "builtin", "caller", "command", "declare", "enable", "let"
-                        "logout", "local", "mapfile", "read", "readarray", "source", "typeset"
+                        "continue", "eval", "exec", "export", "true", "false", "getopts", "hash",
+                        "readonly", "return", "shift", "test", "trap", "times", "umask", "unset",
+                        "alias", "bind", "builtin", "caller", "command", "declare", "enable", "let",
+                        "logout", "local", "mapfile", "read", "readarray", "source", "typeset",
                         "ulimit", "unalias"};
 
 int is_builtin(const char *command);
