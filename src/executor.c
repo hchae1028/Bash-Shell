@@ -23,7 +23,7 @@ int run_program(char *argv[], Redirection *redir) {
     if (redir->out_file || redir->err_file) {
         rc = posix_spawn_file_actions_init(&actions);
         if (rc != 0)
-        return rc;
+            return rc;
 
         if (redir->out_file) {
             int out_flags = O_WRONLY | O_CREAT;
@@ -40,17 +40,17 @@ int run_program(char *argv[], Redirection *redir) {
         }
 
         if (redir->err_file) {
-        int err_flags = O_WRONLY | O_CREAT;
-        if (redir->err_append)
-            err_flags |= O_APPEND;
-        else
-            err_flags |= O_TRUNC;
+            int err_flags = O_WRONLY | O_CREAT;
+            if (redir->err_append)
+                err_flags |= O_APPEND;
+            else
+                err_flags |= O_TRUNC;
 
-        rc = posix_spawn_file_actions_addopen(&actions, STDERR_FILENO, redir->err_file, err_flags, 0644);
-        if (rc != 0) {
-            posix_spawn_file_actions_destroy(&actions);
-            return rc;
-        }
+            rc = posix_spawn_file_actions_addopen(&actions, STDERR_FILENO, redir->err_file, err_flags, 0644);
+            if (rc != 0) {
+                posix_spawn_file_actions_destroy(&actions);
+                return rc;
+            }
         }
 
         actions_ptr = &actions;

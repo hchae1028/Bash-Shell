@@ -6,6 +6,7 @@
 #include "trie.h"
 #include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
@@ -24,10 +25,13 @@ static int read_command_interactive(char *command, size_t command_size, Trie *bu
 static void handle_tab_completion(char *command, size_t *length, size_t command_size,
                                   Trie *builtin_trie, Trie *path_trie);
 static int get_builtin_prefix(char *command, size_t length, char **prefix);
+static char *find_longest_common_prefix(CompletionResult *result);
 
 /**
  * @brief Runs the main shell loop.
  *        Reads commands, tokenizes input, and executes each command.
+ * @param builtin_trie (Trie *) Trie used to autocomplete builtin command names.
+ * @param path_trie (Trie *) Trie used to autocomplete executable names from PATH.
  */
 void run_shell(Trie *builtin_trie, Trie *path_trie) {
   char command[COMMAND_SIZE];
@@ -203,8 +207,10 @@ static int read_command_interactive(char *command, size_t command_size, Trie *bu
 }
 
 /**
- * @brief Completes the current builtin command prefix when Tab is pressed.
- *        Completes a unique match, or lists possible matches when multiple exist.
+ * @brief Completes the current command prefix when Tab is pressed.
+ *        Uses builtin and PATH executable matches. Completes a unique match,
+ *        extends to the longest common prefix for partial matches, or lists
+ *        possible matches when no more characters can be completed.
  * @param command (char *) Current command input buffer.
  * @param length (size_t *) Current length of the command input buffer.
  * @param command_size (size_t) Size of the command buffer.
@@ -223,20 +229,40 @@ static void handle_tab_completion(char *command, size_t *length, size_t command_
     CompletionResult result;
     completion_result_init(&result);
     trie_add_matches(builtin_trie, prefix, &result);
-    int matches = trie_add_matches(path_trie, prefix, &result);
+    trie_add_matches(path_trie, prefix, &result);
+    int matches = result.count;
+
     if (matches == 0) {
         printf("\a");
         return;
     }
     else if (matches > 1) {
-        printf("\a\n");
+        char *lcp = find_longest_common_prefix(&result);
+        size_t prefix_offset = (size_t)(prefix - command);
+        size_t prefix_length = *length - prefix_offset;
+        size_t lcp_length = strlen(lcp);
 
-        for (int i = 0; i < result.count; i++) {
-            printf("%s", result.matches[i]);
-            if (i + 1 < result.count)
-                printf("  ");
+        /* Multiple matches can still complete if they share more characters. */
+        if (lcp_length > prefix_length) {
+            for (size_t i = prefix_length; i < lcp_length && *length + 1 < command_size; i++) {
+                command[*length] = lcp[i];
+                (*length)++;
+                command[*length] = '\0';
+                printf("%c", lcp[i]);
+            }
         }
-        printf("\n$ %s", command);
+        else {
+            printf("\a\n");
+
+            for (int i = 0; i < result.count; i++) {
+                printf("%s", result.matches[i]);
+                if (i + 1 < result.count)
+                    printf("  ");
+            }
+            printf("\n$ %s", command);
+        }
+
+        free(lcp);
         return;
     }
     else {
@@ -283,4 +309,25 @@ static int get_builtin_prefix(char *command, size_t length, char **prefix) {
     }
 
     return 1;
+}
+
+/**
+ * @brief Finds the longest starting substring shared by all completion matches.
+ *        Returns the longest common prefix string.
+ * @param result (CompletionResult *) Completion matches to compare.
+ */
+static char *find_longest_common_prefix(CompletionResult *result) {
+    char *common_prefix = strdup(result->matches[0]);
+
+    for (size_t i = 0; i < result->count; i++) {
+        size_t j = 0;
+
+        while (result->matches[i][j] != '\0'
+               && common_prefix[j] != '\0'
+               && result->matches[i][j] == common_prefix[j]) {
+            j++;
+        }
+        common_prefix[j] = '\0';
+    }
+    return common_prefix;
 }
