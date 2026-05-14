@@ -4,6 +4,7 @@
 #include "executor.h"
 #include "tokenizer.h"
 #include "trie.h"
+#include "pipeline.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -76,6 +77,11 @@ static ShellStatus execute_command(int argc, char *argv[], Redirection *redir) {
 
     if (strcmp(command, "exit") == 0)
         return SHELL_EXIT;
+
+    if (find_pipeline_index(argv) != -1) {
+        execute_pipeline(argv);
+        return SHELL_CONTINUE;
+    }
 
     if (redir->out_file && is_builtin(command)) {
         saved_stdout = redirect_stdout(redir->out_file, redir->out_append);

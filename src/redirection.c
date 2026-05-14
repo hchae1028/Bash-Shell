@@ -4,11 +4,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-int extract_redirs(char *argv[], Redirection *redir);
-int redirect_stdout(const char *file, int append);
-int redirect_stderr(const char *file, int append);
-void restore_stdout(int saved_stdout);
-void restore_stderr(int saved_stderr);
 static int is_stdout_redir(const char *arg, int *append);
 static int is_stderr_redir(const char *arg, int *append);
 

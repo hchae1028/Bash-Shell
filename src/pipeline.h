@@ -1,0 +1,13 @@
+#ifndef PIPELINE_H
+#define PIPELINE_H
+
+void execute_pipeline(char *argv[]);
+
+/**
+ * @brief Checks whether a given list of arguments has a pipeline command "|".
+ *        Returns the index of the pipeline command, -1 if not found.
+ * @param argv (char *[]) Tokenized command argument list.
+ */
+int find_pipeline_index(char *argv[]);
+
+#endif
