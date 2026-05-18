@@ -2,12 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define LOWERCASE_COUNT 26
-#define UPPERCASE_COUNT 26
-#define DIGIT_COUNT 10
-#define SYMBOL_COUNT 3
-#define ALPHABET_SIZE (LOWERCASE_COUNT + UPPERCASE_COUNT + DIGIT_COUNT + SYMBOL_COUNT)
-
 static int char_index(char c);
 static char index_char(int index);
 static int completion_result_contains(CompletionResult *result, const char *word);
@@ -130,7 +124,7 @@ int trie_add_matches(Trie *obj, const char *prefix, CompletionResult *result) {
 void trie_free(Trie *obj) {
     if (!obj) return;
 
-    for (int i = 0; i < 26; i++) {
+    for (int i = 0; i < ALPHABET_SIZE; i++) {
         trie_free(obj->children[i]);
     }
     free(obj);

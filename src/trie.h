@@ -5,6 +5,11 @@
 
 #define MAX_MATCHES 64
 #define MAX_MATCH_LENGTH 256
+#define LOWERCASE_COUNT 26
+#define UPPERCASE_COUNT 26
+#define DIGIT_COUNT 10
+#define SYMBOL_COUNT 3
+#define ALPHABET_SIZE (LOWERCASE_COUNT + UPPERCASE_COUNT + DIGIT_COUNT + SYMBOL_COUNT)
 
 /**
  * @brief   A Trie (prefix tree) structure to store strings.
