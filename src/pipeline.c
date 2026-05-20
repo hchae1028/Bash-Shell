@@ -88,9 +88,9 @@ static int process_pipelined_command(pid_t *pid, int target_fd, int pipefd[2], c
     posix_spawn_file_actions_destroy(&actions);
     return 0;
 
-    cleanup: 
-        posix_spawn_file_actions_destroy(&actions);
-        return rc;
+cleanup:
+    posix_spawn_file_actions_destroy(&actions);
+    return rc;
 }
 
 static int split_pipeline(char *argv[], char ***left_argv, char ***right_argv) {

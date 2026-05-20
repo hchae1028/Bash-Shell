@@ -84,18 +84,37 @@ int tokenize_arg(char *arg, char *argv[], int max_args) {
     if (!*t.p) break;
     if (argc >= max_args - 1) break; // Room for NULL
 
+    if (*t.p == '|') {
+      argv[argc++] = "|";
+      t.p++;
+      continue;
+    }
+
     char *start = t.p;
     t.w = start;
     t.is_sq = 0;
     t.is_dq = 0;
 
-    while (*t.p && (t.is_sq || t.is_dq || !isspace((unsigned char)*t.p)))
+    while (*t.p
+           && (t.is_sq || t.is_dq || !isspace((unsigned char)*t.p))
+           && (t.is_sq || t.is_dq || *t.p != '|')) {
       handle_token(&t);
+    }
 
-    skip_whitespace(&t);
+    int stopped_on_pipe = (*t.p == '|');
+    if (!stopped_on_pipe)
+      skip_whitespace(&t);
 
     *t.w = '\0'; // End the token string
     argv[argc++] = start;
+
+    if (stopped_on_pipe) {
+      if (argc >= max_args - 1)
+        break;
+
+      argv[argc++] = "|";
+      t.p++;
+    }
   }
   argv[argc] = NULL;
   return argc;
