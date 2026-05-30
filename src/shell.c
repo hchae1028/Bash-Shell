@@ -100,15 +100,8 @@ static ShellStatus execute_command(int argc, char *argv[], Redirection *redir) {
         }
     }
 
-    if (strcmp(command, "echo") == 0)
-        builtin_echo(argc, argv);
-    else if (strcmp(command, "type") == 0)
-        builtin_type(pathbuf, sizeof(pathbuf), argc, argv);
-    else if (strcmp(command, "pwd") == 0)
-        builtin_pwd();
-    else if (strcmp(command, "cd") == 0) {
-        if (builtin_cd(pathbuf, sizeof(pathbuf), argv[1]) == 0)
-        printf("%s: %s: No such file or directory\n", command, argv[1]);
+    if (run_builtin(pathbuf, sizeof(pathbuf), argc, argv)) {
+        // Run builtin
     }
     else {
         if (run_program(argv, redir) != 0)

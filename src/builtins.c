@@ -104,6 +104,28 @@ int builtin_cd(char *pathbuf, size_t pathbuf_size, char *arg) {
   return 1;
 }
 
+int run_builtin(char *pathbuf, size_t pathbuf_size, int argc, char *argv[]) {
+  if (strcmp(argv[0], "echo") == 0) {
+    builtin_echo(argc, argv);
+    return 1;
+  }
+  else if (strcmp(argv[0], "type") == 0) {
+    builtin_type(pathbuf, pathbuf_size, argc, argv);
+    return 1;
+  }
+  else if (strcmp(argv[0], "pwd") == 0) {
+    builtin_pwd();
+    return 1;
+  }
+  else if (strcmp(argv[0], "cd") == 0) {
+    if (builtin_cd(pathbuf, pathbuf_size, argv[1]) == 0)
+      printf("%s: %s: No such file or directory\n", argv[0], argv[1]);
+    return 1;
+  }
+
+  return 0;
+}
+
 /**
  * @brief Inserts all shell builtin command names into a Trie.
  * @param root (Trie *) Trie object used for builtin autocompletion.

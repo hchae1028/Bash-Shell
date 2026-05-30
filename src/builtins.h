@@ -45,6 +45,8 @@ void builtin_pwd(void);
  */
 int builtin_cd(char *pathbuf, size_t pathbuf_size, char *arg);
 
+int run_builtin(char *pathbuf, size_t pathbuf_size, int argc, char *argv[]);
+
 /**
  * @brief Inserts all shell builtin command names into a Trie.
  * @param root (Trie *) Trie object used for builtin autocomplete.

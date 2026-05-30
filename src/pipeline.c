@@ -1,15 +1,14 @@
 #include "pipeline.h"
+#include "builtins.h"
+#include "shell.h"
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
-#include <spawn.h>
-
-extern char **environ;
 
 static int process_pipelined_command(pid_t *pid, int target_fd, int pipefd[2], char *argv[]);
 static int split_pipeline(char *argv[], char ***left_argv, char ***right_argv);
+static int get_argc(char *argv[]);
 
 void execute_pipeline(char *argv[]) {
     char **left_argv = NULL;
@@ -22,7 +21,7 @@ void execute_pipeline(char *argv[]) {
         return;
     if (pipe(pipefd) == -1)
         return;
-    
+
     if (process_pipelined_command(&left_pid, STDOUT_FILENO, pipefd, left_argv)) {
         close(pipefd[0]);
         close(pipefd[1]);
@@ -55,42 +54,43 @@ int find_pipeline_index(char *argv[]) {
 }
 
 static int process_pipelined_command(pid_t *pid, int target_fd, int pipefd[2], char *argv[]) {
-    posix_spawn_file_actions_t actions;
-    int rc;
+    *pid = fork();
 
-    rc = posix_spawn_file_actions_init(&actions);
-    if (rc != 0)
-        return rc;
+    if (*pid == -1)
+        return -1;
 
-    if (target_fd == STDOUT_FILENO) {
-        rc = posix_spawn_file_actions_adddup2(&actions, pipefd[1], STDOUT_FILENO);
-        if (rc != 0)
-            goto cleanup;
+    if (*pid == 0) {
+        if (target_fd == STDOUT_FILENO) {
+            if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
+                perror("dup2");
+                _exit(1);
+            }
+        }
+        else if (target_fd == STDIN_FILENO) {
+            if (dup2(pipefd[0], STDIN_FILENO) == -1) {
+                perror("dup2");
+                _exit(1);
+            }
+        }
+
+        close(pipefd[0]);
+        close(pipefd[1]);
+
+        if (is_builtin(argv[0])) {
+            char pathbuf[COMMAND_SIZE];
+            int argc = get_argc(argv);
+
+            if (run_builtin(pathbuf, sizeof(pathbuf), argc, argv)) {
+                fflush(stdout);
+                fflush(stderr);
+                _exit(0);
+            }
+        }
+        execvp(argv[0], argv);
+        perror(argv[0]);
+        _exit(127); // command not found error code
     }
-    else if (target_fd == STDIN_FILENO) {
-        rc = posix_spawn_file_actions_adddup2(&actions, pipefd[0], STDIN_FILENO);
-        if (rc != 0)
-            goto cleanup;
-    }
-    
-    rc = posix_spawn_file_actions_addclose(&actions, pipefd[0]);
-    if (rc != 0)
-        goto cleanup;
-    
-    rc = posix_spawn_file_actions_addclose(&actions, pipefd[1]);
-    if (rc != 0)
-        goto cleanup;
-    
-    rc = posix_spawnp(pid, argv[0], &actions, NULL, argv, environ);
-    if (rc != 0)
-        goto cleanup;
-
-    posix_spawn_file_actions_destroy(&actions);
     return 0;
-
-cleanup:
-    posix_spawn_file_actions_destroy(&actions);
-    return rc;
 }
 
 static int split_pipeline(char *argv[], char ***left_argv, char ***right_argv) {
@@ -108,9 +108,17 @@ static int split_pipeline(char *argv[], char ***left_argv, char ***right_argv) {
         printf("parse error\n");
         return 0;
     }
-    
+
     argv[pipe_index] = NULL;
     *left_argv = argv;
     *right_argv = &argv[pipe_index + 1];
     return 1;
+}
+
+static int get_argc(char *argv[]) {
+    int argc = 0;
+    while (argv[argc] != NULL)
+        argc++;
+
+    return argc;
 }
