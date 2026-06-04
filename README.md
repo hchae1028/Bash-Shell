@@ -3,8 +3,7 @@
 This is my attempt to recreate the Bash shell in C, according to the Bash Reference Manual v5.3.
 The objective of the whole project is to deepen my understanding of computer systems.
 
-To build and run, do
-`make && ./shell`
+To build and run, do `make && ./shell`.
 
 ## Supporting Features
 
@@ -12,7 +11,6 @@ Currently, the program supports the following features:
 * I/O redirection
 * Handling single/double quotes
 * Tab autocompletion for builtin commands and executables in $PATH
-    (list all the matches in case of multiple matches)
 * Dual pipeline
 
 All builtins are stored in `src/builtins.c`, but only the follwing work:
@@ -21,6 +19,29 @@ All builtins are stored in `src/builtins.c`, but only the follwing work:
 * `pwd`
 * `cd`
 * `exit`
+
+## Example I/O
+
+### Multiple matches
+```
+$ ls   
+ls  lsappinfo  lsbom lskq  lsm  lsmp  lsof  lsvfs
+$ ls
+```
+### Pipeline
+```
+$ echo hello world | wc -c
+      12
+$ 
+```
+### Quote Handling
+```
+$ echo "hello \world"    "hi" 
+hello \world hi
+$ echo 'helloworld\n'
+helloworld\n
+$ 
+```
 
 ## References
 
