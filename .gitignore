@@ -1,0 +1,4 @@
+shell
+*.o
+*.d
+.vscode/
