@@ -6,15 +6,17 @@
 
 static int is_stdout_redir(const char *arg, int *append);
 static int is_stderr_redir(const char *arg, int *append);
+static int is_stdin_redir(const char *arg);
 
 /**
- * @brief Extracts stdout redirection from an argument list.
+ * @brief Extracts redirection operators from an argument list.
  *        Removes the redirect operator and filename from argv.
  *        Returns the new argument count, or -1 if the filename is missing.
  * @param argv (char *[]) Argument list to scan and modify.
  * @param redir (Redirection *) Stores info about stdout/stderr redirection filenames and whether to append.
  */
 int extract_redirs(char *argv[], Redirection *redir) {
+    redir->in_file = NULL;
     redir->out_file = NULL;
     redir->err_file = NULL;
     redir->out_append = 0;
@@ -25,23 +27,34 @@ int extract_redirs(char *argv[], Redirection *redir) {
         int redir_append;
 
         if (is_stdout_redir(argv[i], &redir_append)) {
-        if (argv[i + 1] == NULL)
-            return -1;
+          if (argv[i + 1] == NULL)
+              return -1;
 
-        redir->out_file = argv[i + 1];
-        redir->out_append = redir_append;
-        i++;
-        continue;
+          redir->out_file = argv[i + 1];
+          redir->out_append = redir_append;
+          i++;
+          continue;
         }
+
         if (is_stderr_redir(argv[i], &redir_append)) {
-        if (argv[i + 1] == NULL)
+          if (argv[i + 1] == NULL)
+              return -1;
+
+          redir->err_file = argv[i + 1];
+          redir->err_append = redir_append;
+          i++;
+          continue;
+        }
+
+        if (is_stdin_redir(argv[i])) {
+          if (argv[i + 1] == NULL)
             return -1;
 
-        redir->err_file = argv[i + 1];
-        redir->err_append = redir_append;
-        i++;
-        continue;
+          redir->in_file = argv[i + 1];
+          i++;
+          continue;
         }
+
         argv[argc++] = argv[i];
     }
 
@@ -116,6 +129,32 @@ int redirect_stderr(const char *err_file, int append) {
 }
 
 /**
+ * @brief Redirects the shell process stdin to a file.
+ *        Returns a saved copy of stdin, or -1 if redirection fails.
+ * @param in_file (const char *) File to redirect stdin from.
+ */
+int redirect_stdin(const char *in_file) {
+  int saved_stdin = dup(STDIN_FILENO);
+
+  if (saved_stdin == -1)
+    return -1;
+  int fd = open(in_file, O_RDONLY);
+  if (fd == -1) {
+    close(saved_stdin);
+    return -1;
+  }
+
+  if (dup2(fd, STDIN_FILENO) == -1) {
+    close(fd);
+    close(saved_stdin);
+    return -1;
+  }
+
+  close(fd);
+  return saved_stdin;
+}
+
+/**
  * @brief Restores stdout after temporary redirection.
  * @param saved_stdout (int) Saved stdout file descriptor from redirect_stdout.
  */
@@ -133,6 +172,15 @@ void restore_stderr(int saved_stderr) {
   fflush(stderr);
   dup2(saved_stderr, STDERR_FILENO);
   close(saved_stderr);
+}
+
+/**
+ * @brief Restores stdin after temporary redirection.
+ * @param saved_stdin (int) Saved stdin file descriptor from redirect_stdin.
+ */
+void restore_stdin(int saved_stdin) {
+  dup2(saved_stdin, STDIN_FILENO);
+  close(saved_stdin);
 }
 
 /**
@@ -170,5 +218,16 @@ static int is_stderr_redir(const char *arg, int *append) {
     *append = 1;
     return 1;
   }
+  return 0;
+}
+
+/**
+ * @brief Checks whether an argument is a stdin redirection operator, <.
+ *        Returns 1 if it is a stdin redirect, 0 otherwise.
+ * @param arg (const char *) Argument to check.
+ */
+static int is_stdin_redir(const char *arg) {
+  if (strcmp(arg, "<") == 0)
+    return 1;
   return 0;
 }

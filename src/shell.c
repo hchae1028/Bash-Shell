@@ -69,6 +69,7 @@ void run_shell(Trie *builtin_trie, Trie *path_trie) {
 static ShellStatus execute_command(int argc, char *argv[], Redirection *redir) {
     char pathbuf[COMMAND_SIZE];
     char *command = argv[0];
+    int saved_stdin = -1;
     int saved_stdout = -1;
     int saved_stderr = -1;
 
@@ -99,11 +100,26 @@ static ShellStatus execute_command(int argc, char *argv[], Redirection *redir) {
             return SHELL_CONTINUE;
         }
     }
+    if (redir->in_file && is_builtin(command)) {
+        saved_stdin = redirect_stdin(redir->in_file);
+        if (saved_stdin == -1) {
+            if (saved_stdout != -1)
+                restore_stdout(saved_stdout);
+            if (saved_stderr != -1)
+                restore_stderr(saved_stderr);
+            perror(redir->in_file);
+            return SHELL_CONTINUE;
+        }
+    }
 
     if (run_builtin(pathbuf, sizeof(pathbuf), argc, argv)) {
         // Run builtin
     }
     else {
+        if (redir->in_file && access(redir->in_file, R_OK) == -1) {
+            perror(redir->in_file);
+            return SHELL_CONTINUE;
+        }
         if (run_program(argv, redir) != 0)
         printf("%s: command not found\n", command);
     }
@@ -112,6 +128,8 @@ static ShellStatus execute_command(int argc, char *argv[], Redirection *redir) {
         restore_stdout(saved_stdout);
     if (saved_stderr != -1)
         restore_stderr(saved_stderr);
+    if (saved_stdin != -1)
+        restore_stdin(saved_stdin);
     return SHELL_CONTINUE;
 }
 

@@ -2,6 +2,7 @@
 #define REDIRECTION_H
 
 typedef struct {
+  char *in_file;
   char *out_file;
   char *err_file;
   int out_append;
@@ -9,7 +10,7 @@ typedef struct {
 } Redirection;
 
 /**
- * @brief Extracts stdout redirection from an argument list.
+ * @brief Extracts redirection operators from an argument list.
  *        Removes the redirect operator and filename from argv.
  *        Returns the new argument count, or -1 if the filename is missing.
  * @param argv (char *[]) Argument list to scan and modify.
@@ -44,5 +45,18 @@ void restore_stdout(int saved_stdout);
  * @param saved_stderr (int) Saved stderr file descriptor from redirect_stderr.
  */
 void restore_stderr(int saved_stderr);
+
+/**
+ * @brief Redirects the shell process stdin to a file.
+ *        Returns a saved copy of stdin, or -1 if redirection fails.
+ * @param in_file (const char *) File to redirect stdin from.
+ */
+int redirect_stdin(const char *in_file);
+
+/**
+ * @brief Restores stdin after temporary redirection.
+ * @param saved_stdin (int) Saved stdin file descriptor from redirect_stdin.
+ */
+void restore_stdin(int saved_stdin);
 
 #endif
