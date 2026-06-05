@@ -10,8 +10,8 @@ To build and run, do `make && ./shell`.
 Currently, the program supports the following features:
 * I/O redirection
 * Handling single/double quotes
-* Tab autocompletion for builtin commands and executables in $PATH
-* Dual pipeline
+* Tab autocompletion for builtin commands and executables in `$PATH`
+* Multiple pipelines
 
 All builtins are stored in `src/builtins.c`, but only the follwing work:
 * `echo`
