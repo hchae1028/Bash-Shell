@@ -1,7 +1,9 @@
 #ifndef PIPELINE_H
 #define PIPELINE_H
 
-void execute_pipeline(char *argv[]);
+#include "redirection.h"
+
+void execute_pipeline(char *argv[], Redirection *redir);
 
 /**
  * @brief Checks whether a given list of arguments has a pipeline command "|".

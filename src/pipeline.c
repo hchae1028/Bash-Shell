@@ -1,33 +1,40 @@
 #include "pipeline.h"
 #include "builtins.h"
 #include "shell.h"
+#include "redirection.h"
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/wait.h>
 
-static int process_pipelined_command(pid_t *pid, int target_fd, int pipefd[2], char *argv[]);
+static int process_pipelined_command(pid_t *pid, int target_fd, int pipefd[2], char *argv[], Redirection *redir);
 static int split_pipeline(char *argv[], char ***left_argv, char ***right_argv);
 static int get_argc(char *argv[]);
 
-void execute_pipeline(char *argv[]) {
+void execute_pipeline(char *argv[], Redirection *redir) {
     char **left_argv = NULL;
     char **right_argv = NULL;
     int pipefd[2];
     pid_t left_pid, right_pid;
     int status;
 
+    if (redir->in_file && access(redir->in_file, R_OK) == -1) {
+        perror(redir->in_file);
+        return;
+    }
+
     if (!split_pipeline(argv, &left_argv, &right_argv))
         return;
     if (pipe(pipefd) == -1)
         return;
 
-    if (process_pipelined_command(&left_pid, STDOUT_FILENO, pipefd, left_argv)) {
+    if (process_pipelined_command(&left_pid, STDOUT_FILENO, pipefd, left_argv, redir)) {
         close(pipefd[0]);
         close(pipefd[1]);
         return;
     }
-    if (process_pipelined_command(&right_pid, STDIN_FILENO, pipefd, right_argv)) {
+    if (process_pipelined_command(&right_pid, STDIN_FILENO, pipefd, right_argv, redir)) {
         close(pipefd[0]);
         close(pipefd[1]);
         waitpid(left_pid, &status, 0);
@@ -53,7 +60,7 @@ int find_pipeline_index(char *argv[]) {
     return -1;
 }
 
-static int process_pipelined_command(pid_t *pid, int target_fd, int pipefd[2], char *argv[]) {
+static int process_pipelined_command(pid_t *pid, int target_fd, int pipefd[2], char *argv[], Redirection *redir) {
     *pid = fork();
 
     if (*pid == -1)
@@ -61,6 +68,20 @@ static int process_pipelined_command(pid_t *pid, int target_fd, int pipefd[2], c
 
     if (*pid == 0) {
         if (target_fd == STDOUT_FILENO) {
+            if (redir->in_file) {
+                int fd = open(redir->in_file, O_RDONLY);
+                if (fd == -1) {
+                    perror(redir->in_file);
+                    _exit(1);
+                }
+
+                if (dup2(fd, STDIN_FILENO) == -1) {
+                    perror("dup2");
+                    _exit(1);
+                }
+                close(fd);
+            }
+
             if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
                 perror("dup2");
                 _exit(1);
@@ -70,6 +91,44 @@ static int process_pipelined_command(pid_t *pid, int target_fd, int pipefd[2], c
             if (dup2(pipefd[0], STDIN_FILENO) == -1) {
                 perror("dup2");
                 _exit(1);
+            }
+
+            if (redir->out_file) {
+                int flags = O_CREAT | O_WRONLY;
+                if (redir->out_append)
+                    flags |= O_APPEND;
+                else
+                    flags |= O_TRUNC;
+
+                int fd = open(redir->out_file, flags, 0644);
+                if (fd == -1) {
+                    perror(redir->out_file);
+                    _exit(1);
+                }
+                if (dup2(fd, STDOUT_FILENO) == -1) {
+                    perror("dup2");
+                    _exit(1);
+                }
+                close(fd);
+            }
+
+            if (redir->err_file) {
+                int flags = O_CREAT | O_WRONLY;
+                if (redir->err_append)
+                    flags |= O_APPEND;
+                else
+                    flags |= O_TRUNC;
+
+                int fd = open(redir->err_file, flags, 0644);
+                if (fd == -1) {
+                    perror(redir->err_file);
+                    _exit(1);
+                }
+                if (dup2(fd, STDERR_FILENO) == -1) {
+                    perror("dup2");
+                    _exit(1);
+                }
+                close(fd);
             }
         }
 
@@ -88,7 +147,7 @@ static int process_pipelined_command(pid_t *pid, int target_fd, int pipefd[2], c
         }
         execvp(argv[0], argv);
         perror(argv[0]);
-        _exit(127); // command not found error code
+        _exit(127); // error code 127: command not found
     }
     return 0;
 }

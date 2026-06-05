@@ -80,7 +80,7 @@ static ShellStatus execute_command(int argc, char *argv[], Redirection *redir) {
         return SHELL_EXIT;
 
     if (find_pipeline_index(argv) != -1) {
-        execute_pipeline(argv);
+        execute_pipeline(argv, redir);
         return SHELL_CONTINUE;
     }
 
