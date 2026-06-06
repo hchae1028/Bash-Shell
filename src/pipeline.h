@@ -3,6 +3,8 @@
 
 #include "redirection.h"
 
+#define MAX_PIPELINE 16
+
 void execute_pipeline(char *argv[], Redirection *redir);
 
 /**
