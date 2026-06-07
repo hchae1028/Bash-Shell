@@ -24,14 +24,20 @@ All builtins are stored in `src/builtins.c`, but only the follwing work:
 
 ### Multiple matches
 ```
-$ ls   
-ls  lsappinfo  lsbom lskq  lsm  lsmp  lsof  lsvfs
-$ ls
+$ pri<TAB>
+printf  priclass.d  pridist.d  printenv  printf_gettext  printf_ngettext
+$ printf<TAB>
+printf  printf_gettext  printf_ngettext
+$ printf
 ```
 ### Pipeline
 ```
 $ echo hello world | wc -c
       12
+$ type echo | cat | wc -c
+      24
+$ echo hello || wc -c
+parse error
 $ 
 ```
 ### Quote Handling
@@ -42,6 +48,14 @@ $ echo 'helloworld\n'
 helloworld\n
 $ 
 ```
+
+## Limitations
+
+* Most of the arrays used are static; a particular amount of memory is allocated by the numbers defined in header files.
+Realistically, this should be more than enough space for processing most commands.
+* Current version only supports input redirection in the first and output in the last segment of pipeline due to the use of the global redirection struct.
+* Arrow keys to move the cursor in the input are not supported since the input is processed character by character via `termios.h`.
+* More features such as environment variable expansion, history, and job control are to be added.
 
 ## References
 
