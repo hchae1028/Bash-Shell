@@ -5,6 +5,7 @@
 #include "tokenizer.h"
 #include "trie.h"
 #include "pipeline.h"
+#include "expansion.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,13 +37,19 @@ static char *find_longest_common_prefix(CompletionResult *result);
  */
 void run_shell(Trie *builtin_trie, Trie *path_trie) {
   char command[COMMAND_SIZE];
+  char expanded[COMMAND_SIZE];  // Expanded buffer for environment variable expansion
 
   while (1) {
     if (!read_command(command, sizeof(command), builtin_trie, path_trie))
       break;
+    
+    if (!expand_env_var(command, expanded, sizeof(expanded))) {
+        fprintf(stderr, "expansion error\n");
+        continue;
+    }
 
     char *args[MAX_ARGS];
-    int arg_count = tokenize_arg(command, args, MAX_ARGS);
+    int arg_count = tokenize_arg(expanded, args, MAX_ARGS);
     if (arg_count == 0)
       continue;
 

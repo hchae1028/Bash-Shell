@@ -2,12 +2,12 @@
 #include <stdlib.h>
 #include <ctype.h>
 
-typedef struct
-{
+typedef struct {
   char *p;    // read pointer
   char *w;    // write pointer
   int is_sq;  // is in single quotes
   int is_dq;  // is in double quotes
+  int stopped_on_pipe;  // Pipeline '|' character
 } Token;
 
 /**
@@ -50,7 +50,9 @@ static void handle_backslash(Token *t) {
  * @param t (Token *) Token state containing quote flags and read/write pointers.
  */
 static void handle_token(Token *t) {
-  if (*t->p == '\\')
+  if (*t->p == '|' && !t->is_sq && !t->is_dq)
+    t->stopped_on_pipe = 1;
+  else if (*t->p == '\\')
     handle_backslash(t);
   else if (*t->p == '\'' && !t->is_dq) {  // Handle single quotes
     t->is_sq = !t->is_sq;
@@ -77,38 +79,40 @@ int tokenize_arg(char *arg, char *argv[], int max_args) {
   Token t = {.p = arg,
              .w = arg,
              .is_sq = 0,
-             .is_dq = 0};
+             .is_dq = 0,
+             .stopped_on_pipe = 0};
 
   while (*t.p) {
     skip_whitespace(&t);
     if (!*t.p) break;
     if (argc >= max_args - 1) break; // Room for NULL
 
-    if (*t.p == '|') {
+    char *start = t.p;
+    t.w = start;
+    t.is_sq = 0;
+    t.is_dq = 0;
+    t.stopped_on_pipe = 0;
+
+    while (*t.p
+           && (t.is_sq || t.is_dq || !isspace((unsigned char)*t.p))) {
+      handle_token(&t);
+      if (t.stopped_on_pipe)
+        break;
+    }
+
+    if (t.stopped_on_pipe && start == t.p) {
       argv[argc++] = "|";
       t.p++;
       continue;
     }
 
-    char *start = t.p;
-    t.w = start;
-    t.is_sq = 0;
-    t.is_dq = 0;
-
-    while (*t.p
-           && (t.is_sq || t.is_dq || !isspace((unsigned char)*t.p))
-           && (t.is_sq || t.is_dq || *t.p != '|')) {
-      handle_token(&t);
-    }
-
-    int stopped_on_pipe = (*t.p == '|');
-    if (!stopped_on_pipe)
+    if (!t.stopped_on_pipe)
       skip_whitespace(&t);
 
     *t.w = '\0'; // End the token string
     argv[argc++] = start;
 
-    if (stopped_on_pipe) {
+    if (t.stopped_on_pipe) {
       if (argc >= max_args - 1)
         break;
 
