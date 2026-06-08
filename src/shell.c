@@ -20,7 +20,7 @@ typedef enum {
     SHELL_EXIT          /* Shell exit code */
 } ShellStatus;
 
-static ShellStatus execute_command(int argc, char *argv[], Redirection *redir);
+static ShellStatus execute_command(int argc, char *argv[]);
 static int read_command(char *command, size_t command_size, Trie *builtin_trie, Trie *path_trie);
 static int read_command_interactive(char *command, size_t command_size, Trie *builtin_trie, Trie *path_trie);
 static void handle_tab_completion(char *command, size_t *length, size_t command_size,
@@ -46,14 +46,7 @@ void run_shell(Trie *builtin_trie, Trie *path_trie) {
     if (arg_count == 0)
       continue;
 
-    Redirection redir;
-    arg_count = extract_redirs(args, &redir);
-    if (arg_count == -1) {
-      fprintf(stderr, "syntax error: expected filename after redirection\n");
-      continue;
-    }
-
-    if (execute_command(arg_count, args, &redir) == SHELL_EXIT)
+    if (execute_command(arg_count, args) == SHELL_EXIT)
       break;
   }
 }
@@ -64,50 +57,60 @@ void run_shell(Trie *builtin_trie, Trie *path_trie) {
  *        Returns SHELL_EXIT when the shell should stop, SHELL_CONTINUE otherwise.
  * @param argc (int) Number of command line arguments.
  * @param argv (char *[]) Tokenized command argument list.
- * @param redir (Redirection *) Stores info about stdout/stderr redirection filenames and whether to append.
  */
-static ShellStatus execute_command(int argc, char *argv[], Redirection *redir) {
+static ShellStatus execute_command(int argc, char *argv[]) {
     char pathbuf[COMMAND_SIZE];
-    char *command = argv[0];
+    char *command;
     int saved_stdin = -1;
     int saved_stdout = -1;
     int saved_stderr = -1;
+    Redirection redir;
 
-    if (command == NULL)
+    if (argv[0] == NULL)
         return SHELL_CONTINUE;
 
-    if (strcmp(command, "exit") == 0)
+    if (strcmp(argv[0], "exit") == 0)
         return SHELL_EXIT;
 
     if (find_pipeline_index(argv) != -1) {
-        execute_pipeline(argv, redir);
+        execute_pipeline(argv);
         return SHELL_CONTINUE;
     }
 
-    if (redir->out_file && is_builtin(command)) {
-        saved_stdout = redirect_stdout(redir->out_file, redir->out_append);
+    argc = extract_redirs(argv, &redir);
+    if (argc == -1) {
+        fprintf(stderr, "syntax error: expected filename after redirection\n");
+        return SHELL_CONTINUE;
+    }
+    if (argc == 0 || argv[0] == NULL)
+        return SHELL_CONTINUE;
+
+    command = argv[0];
+
+    if (redir.out_file && is_builtin(command)) {
+        saved_stdout = redirect_stdout(redir.out_file, redir.out_append);
         if (saved_stdout == -1) {
-            perror(redir->out_file);
+            perror(redir.out_file);
             return SHELL_CONTINUE;
         }
     }
-    if (redir->err_file && is_builtin(command)) {
-        saved_stderr = redirect_stderr(redir->err_file, redir->err_append);
+    if (redir.err_file && is_builtin(command)) {
+        saved_stderr = redirect_stderr(redir.err_file, redir.err_append);
         if (saved_stderr == -1) {
             if (saved_stdout != -1)
                 restore_stdout(saved_stdout);
-            perror(redir->err_file);
+            perror(redir.err_file);
             return SHELL_CONTINUE;
         }
     }
-    if (redir->in_file && is_builtin(command)) {
-        saved_stdin = redirect_stdin(redir->in_file);
+    if (redir.in_file && is_builtin(command)) {
+        saved_stdin = redirect_stdin(redir.in_file);
         if (saved_stdin == -1) {
             if (saved_stdout != -1)
                 restore_stdout(saved_stdout);
             if (saved_stderr != -1)
                 restore_stderr(saved_stderr);
-            perror(redir->in_file);
+            perror(redir.in_file);
             return SHELL_CONTINUE;
         }
     }
@@ -116,11 +119,11 @@ static ShellStatus execute_command(int argc, char *argv[], Redirection *redir) {
         // Run builtin
     }
     else {
-        if (redir->in_file && access(redir->in_file, R_OK) == -1) {
-            perror(redir->in_file);
+        if (redir.in_file && access(redir.in_file, R_OK) == -1) {
+            perror(redir.in_file);
             return SHELL_CONTINUE;
         }
-        if (run_program(argv, redir) != 0)
+        if (run_program(argv, &redir) != 0)
         printf("%s: command not found\n", command);
     }
 

@@ -6,7 +6,6 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-
 static int is_inpath(const char *path);
 
 /**

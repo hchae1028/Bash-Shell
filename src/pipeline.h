@@ -1,11 +1,9 @@
 #ifndef PIPELINE_H
 #define PIPELINE_H
 
-#include "redirection.h"
-
 #define MAX_PIPELINE 16
 
-void execute_pipeline(char *argv[], Redirection *redir);
+void execute_pipeline(char *argv[]);
 
 /**
  * @brief Checks whether a given list of arguments has a pipeline command "|".

@@ -42,7 +42,7 @@ $
 ```
 ### Quote Handling
 ```
-$ echo "hello \world"    "hi" 
+$ echo "hello \world"    "hi"
 hello \world hi
 $ echo 'helloworld\n'
 helloworld\n
@@ -53,7 +53,6 @@ $
 
 * Most of the arrays used are static; a particular amount of memory is allocated by the numbers defined in header files.
 Realistically, this should be more than enough space for processing most commands.
-* Current version only supports input redirection in the first and output in the last segment of pipeline due to the use of the global redirection struct.
 * Arrow keys to move the cursor in the input are not supported since the input is processed character by character via `termios.h`.
 * More features such as environment variable expansion, history, and job control are to be added.
 
