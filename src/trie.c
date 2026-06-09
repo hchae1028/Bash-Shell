@@ -21,7 +21,7 @@ void completion_result_init(CompletionResult *result) {
 
 /**
  * @brief   Creates a new Trie object by memory allocation.
- *          Returns an intialized Trie object.
+ * @return  Pointer to the initialized Trie object, or NULL if allocation fails.
  */
 Trie* trie_create() {
     Trie *node = calloc(1, sizeof(Trie));
@@ -49,9 +49,9 @@ void trie_insert(Trie *obj, const char *word) {
 
 /**
  * @brief   Searches a given word in the Trie object.
- *          Returns 0 if not found, or is_word otherwise.
  * @param   obj (Trie *) A Trie object to be searched.
  * @param   word (char *) A string word to search for.
+ * @return  1 if word is stored in the Trie, 0 otherwise.
  */
 int trie_search(Trie *obj, const char *word) {
     Trie *curr = obj;
@@ -68,9 +68,9 @@ int trie_search(Trie *obj, const char *word) {
 
 /**
  * @brief   Determines if a given prefix of a word exists in the Trie object.
- *          Returns 0 if not found, or 1 otherwise.
  * @param   obj (Trie *) A Trie object to be searched.
  * @param   prefix (char *) A prefix string to search for.
+ * @return  1 if prefix exists in the Trie, 0 otherwise.
  */
 int trie_starts_with(Trie *obj, const char *prefix) {
     Trie *curr = obj;
@@ -87,10 +87,11 @@ int trie_starts_with(Trie *obj, const char *prefix) {
 
 /**
  * @brief   Collects words in the Trie that start with a given prefix.
- *          Adds up to MAX_MATCHES matches and returns the total number stored.
+ *          Adds up to MAX_MATCHES matches.
  * @param   obj (Trie *) A Trie object to be searched.
  * @param   prefix (const char *) A prefix string to search for.
  * @param   result (CompletionResult *) Stores matching words and their count.
+ * @return  Total number of matches stored in result.
  */
 int trie_add_matches(Trie *obj, const char *prefix, CompletionResult *result) {
     Trie *curr = obj;
@@ -132,8 +133,8 @@ void trie_free(Trie *obj) {
 
 /**
  * @brief Converts a supported command-name character into a Trie child index.
- *        Returns -1 if the character is not supported.
  * @param c (char) Character to convert.
+ * @return Trie child index, or -1 if c is not supported.
  */
 static int char_index(char c) {
     if (c >= 'a' && c <= 'z')
@@ -154,6 +155,7 @@ static int char_index(char c) {
 /**
  * @brief Converts a Trie child index back into its command-name character.
  * @param index (int) Trie child index to convert.
+ * @return Character represented by index.
  */
 static char index_char(int index) {
     if (index < LOWERCASE_COUNT)
@@ -179,6 +181,7 @@ static char index_char(int index) {
  * @brief Checks whether a completion result already contains a word.
  * @param result (CompletionResult *) Result object to search.
  * @param word (const char *) Word to check.
+ * @return 1 if word is already stored in result, 0 otherwise.
  */
 static int completion_result_contains(CompletionResult *result, const char *word) {
     for (int i = 0; i < result->count; i++) {

@@ -5,7 +5,6 @@
 #include "tokenizer.h"
 #include "trie.h"
 #include "pipeline.h"
-#include "expansion.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,19 +36,17 @@ static char *find_longest_common_prefix(CompletionResult *result);
  */
 void run_shell(Trie *builtin_trie, Trie *path_trie) {
   char command[COMMAND_SIZE];
-  char expanded[COMMAND_SIZE];  // Expanded buffer for environment variable expansion
 
   while (1) {
     if (!read_command(command, sizeof(command), builtin_trie, path_trie))
       break;
-    
-    if (!expand_env_var(command, expanded, sizeof(expanded))) {
-        fprintf(stderr, "expansion error\n");
-        continue;
-    }
 
     char *args[MAX_ARGS];
-    int arg_count = tokenize_arg(expanded, args, MAX_ARGS);
+    int arg_count = tokenize_arg(command, sizeof(command), args, MAX_ARGS);
+    if (arg_count == -1) {
+      fprintf(stderr, "expansion error\n");
+      continue;
+    }
     if (arg_count == 0)
       continue;
 
@@ -61,9 +58,9 @@ void run_shell(Trie *builtin_trie, Trie *path_trie) {
 /**
  * @brief Executes one parsed shell command.
  *        Dispatches shell builtins or runs an external program.
- *        Returns SHELL_EXIT when the shell should stop, SHELL_CONTINUE otherwise.
  * @param argc (int) Number of command line arguments.
  * @param argv (char *[]) Tokenized command argument list.
+ * @return SHELL_EXIT when the shell should stop, SHELL_CONTINUE otherwise.
  */
 static ShellStatus execute_command(int argc, char *argv[]) {
     char pathbuf[COMMAND_SIZE];
@@ -146,11 +143,11 @@ static ShellStatus execute_command(int argc, char *argv[]) {
 /**
  * @brief Reads one line of input from the user.
  *        Prints the prompt and removes the trailing newline.
- *        Returns 1 if a command is read, 0 on EOF or input failure.
  * @param command (char *) Buffer used to store the command line.
  * @param command_size (size_t) Size of the command buffer.
  * @param builtin_trie (Trie *) Trie used to autocomplete builtin command names.
  * @param path_trie (Trie *) Trie used to autocomplete executable names from PATH.
+ * @return 1 if a command is read, 0 on EOF or input failure.
  */
 static int read_command(char *command, size_t command_size, Trie *builtin_trie, Trie *path_trie) {
     printf("$ ");
@@ -167,11 +164,11 @@ static int read_command(char *command, size_t command_size, Trie *builtin_trie, 
 /**
  * @brief Reads command input from an interactive terminal.
  *        Uses raw terminal mode to handle Enter, Tab, Backspace, and Ctrl-D.
- *        Returns 1 if a command is read, 0 on EOF or input failure.
  * @param command (char *) Buffer used to store the command line.
  * @param command_size (size_t) Size of the command buffer.
  * @param builtin_trie (Trie *) Trie used to autocomplete builtin command names.
  * @param path_trie (Trie *) Trie used to autocomplete executable names from PATH.
+ * @return 1 if a command is read, 0 on EOF or input failure.
  */
 static int read_command_interactive(char *command, size_t command_size, Trie *builtin_trie, Trie *path_trie) {
     struct termios original;
@@ -316,10 +313,10 @@ static void handle_tab_completion(char *command, size_t *length, size_t command_
 
 /**
  * @brief Finds the command-name prefix that should be autocompleted.
- *        Returns 1 only when the input contains a single unfinished command word.
  * @param command (char *) Current command input buffer.
  * @param length (size_t) Current length of the command input buffer.
  * @param prefix (char **) Stores a pointer to the prefix inside command.
+ * @return 1 when the input contains a single unfinished command word, 0 otherwise.
  */
 static int get_builtin_prefix(char *command, size_t length, char **prefix) {
     size_t i = 0;
@@ -340,8 +337,8 @@ static int get_builtin_prefix(char *command, size_t length, char **prefix) {
 
 /**
  * @brief Finds the longest starting substring shared by all completion matches.
- *        Returns the longest common prefix string.
  * @param result (CompletionResult *) Completion matches to compare.
+ * @return Newly allocated longest common prefix string.
  */
 static char *find_longest_common_prefix(CompletionResult *result) {
     char *common_prefix = strdup(result->matches[0]);

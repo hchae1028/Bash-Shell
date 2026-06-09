@@ -37,7 +37,7 @@ void completion_result_init(CompletionResult *result);
 
 /**
  * @brief   Create a new Trie object.
- *          Returns a pointer to the intialized Trie object.
+ * @return  Pointer to the initialized Trie object, or NULL if allocation fails.
  */
 Trie* trie_create();
 
@@ -50,26 +50,27 @@ void trie_insert(Trie *obj, const char *word);
 
 /**
  * @brief   Searches a given word in the Trie object.
- *          Returns 0 if not found, or is_word otherwise.
  * @param   obj (Trie *) A Trie object to be searched.
  * @param   word (const char *) A string word to search for.
+ * @return  1 if word is stored in the Trie, 0 otherwise.
  */
 int trie_search(Trie *obj, const char *word);
 
 /**
  * @brief   Determines if a given prefix of a word exists in the Trie object.
- *          Returns 0 if not found, or 1 otherwise.
  * @param   obj (Trie *) A Trie object to be searched.
  * @param   prefix (const char *) A prefix string to search for.
+ * @return  1 if prefix exists in the Trie, 0 otherwise.
  */
 int trie_starts_with(Trie *obj, const char *prefix);
 
 /**
  * @brief   Collects words in the Trie that start with a given prefix.
- *          Adds up to MAX_MATCHES matches and returns the total number stored.
+ *          Adds up to MAX_MATCHES matches.
  * @param   obj (Trie *) A Trie object to be searched.
  * @param   prefix (const char *) A prefix string to search for.
  * @param   result (CompletionResult *) Stores matching words and their count.
+ * @return  Total number of matches stored in result.
  */
 int trie_add_matches(Trie *obj, const char *prefix, CompletionResult *result);
 

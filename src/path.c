@@ -44,10 +44,10 @@ void build_path_trie(Trie *root) {
 /**
  * @brief Searches PATH for a given command argument.
  *        Stores the full executable path in pathbuf if found.
- *        Returns 1 if the command is found, 0 otherwise.
  * @param pathbuf (char *) Buffer used to store the full executable path.
  * @param pathbuf_size (size_t) Size of the path buffer.
  * @param arg (const char *) Command name to search for.
+ * @return 1 if the command is found in PATH, 0 otherwise.
  */
 int parse_path(char *pathbuf, size_t pathbuf_size, const char *arg) {
   const char *path = getenv("PATH");
@@ -75,8 +75,8 @@ int parse_path(char *pathbuf, size_t pathbuf_size, const char *arg) {
 /**
  * @brief Checks whether a given file path exists
  *        and has at least one execution permission.
- *        Returns 1 if it does, 0 otherwise.
  * @param path (const char *) Path to be checked.
+ * @return 1 if path exists and is executable, 0 otherwise.
  */
 static int is_inpath(const char *path) {
   struct stat st;

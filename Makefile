@@ -2,7 +2,7 @@ CC      := gcc
 CFLAGS  := -Wall -Werror -std=c99 -g
 DEPFLAGS := -MMD -MP
 
-SRCS    := src/main.c src/tokenizer.c src/shell.c src/builtins.c src/redirection.c src/executor.c src/trie.c src/path.c src/pipeline.c src/expansion.c
+SRCS    := src/main.c src/tokenizer.c src/shell.c src/builtins.c src/redirection.c src/executor.c src/trie.c src/path.c src/pipeline.c
 OBJS    := $(SRCS:.c=.o)
 DEPS    := $(OBJS:.o=.d)
 

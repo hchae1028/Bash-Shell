@@ -9,9 +9,9 @@ extern char **environ;
 /**
  * @brief Runs an external program using posix_spawnp.
  *        Waits for the child process to finish before returning.
- *        Returns 0 if the program starts successfully, nonzero otherwise.
  * @param argv (char *[]) Argument list where argv[0] is the command name.
  * @param redir (Redirection *) Stores info about stdout/stderr redirection filenames and whether to append.
+ * @return 0 if the program starts successfully, nonzero otherwise.
  */
 int run_program(char *argv[], Redirection *redir) {
     pid_t pid;

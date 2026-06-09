@@ -15,8 +15,8 @@ const char *builtins[] = {"echo", "type", "exit", "cd", "printf", "pwd", ":", ".
 
 /**
  * @brief Checks whether a given command argument is a shell builtin.
- *        Returns 1 if it is a shell builtin, or 0 otherwise.
  * @param arg (const char *) Command line argument to be checked.
+ * @return 1 if arg is a shell builtin, 0 otherwise.
  */
 int is_builtin(const char *arg) {
   for (size_t i = 0; i < sizeof(builtins)/sizeof(builtins[0]); i++) {
@@ -75,10 +75,10 @@ void builtin_pwd(void) {
 /**
  * @brief Handles the cd builtin command.
  *        Changes the current working directory, including basic ~ expansion.
- *        Returns 1 if the directory changes successfully, 0 otherwise.
  * @param pathbuf (char *) Buffer used when expanding paths like ~/...
  * @param pathbuf_size (size_t) Size of the path buffer.
  * @param arg (char *) Directory path argument passed to cd.
+ * @return 1 if the directory changes successfully, 0 otherwise.
  */
 int builtin_cd(char *pathbuf, size_t pathbuf_size, char *arg) {
   const char *home = getenv("HOME");

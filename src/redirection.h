@@ -12,25 +12,25 @@ typedef struct {
 /**
  * @brief Extracts redirection operators from an argument list.
  *        Removes the redirect operator and filename from argv.
- *        Returns the new argument count, or -1 if the filename is missing.
  * @param argv (char *[]) Argument list to scan and modify.
  * @param redir (Redirection *) Stores info about stdout/stderr redirection filenames and whether to append.
+ * @return New argument count, or -1 if a redirection filename is missing.
  */
 int extract_redirs(char *argv[], Redirection *redir);
 
 /**
  * @brief Redirects the shell process stdout to a file.
- *        Returns a saved copy of stdout, or -1 if redirection fails.
  * @param out_file (const char *) File to redirect stdout into.
  * @param append (int) Whether to append instead of truncating the file.
+ * @return Saved stdout file descriptor, or -1 if redirection fails.
  */
 int redirect_stdout(const char *file, int append);
 
 /**
  * @brief Redirects the shell process stderr to a file.
- *        Returns a saved copy of stderr, or -1 if redirection fails.
  * @param err_file (const char *) File to redirect stderr into.
  * @param append (int) Whether to append instead of truncating the file.
+ * @return Saved stderr file descriptor, or -1 if redirection fails.
  */
 int redirect_stderr(const char *file, int append);
 
@@ -48,8 +48,8 @@ void restore_stderr(int saved_stderr);
 
 /**
  * @brief Redirects the shell process stdin to a file.
- *        Returns a saved copy of stdin, or -1 if redirection fails.
  * @param in_file (const char *) File to redirect stdin from.
+ * @return Saved stdin file descriptor, or -1 if redirection fails.
  */
 int redirect_stdin(const char *in_file);
 

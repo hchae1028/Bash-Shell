@@ -6,8 +6,8 @@
 
 /**
  * @brief Checks whether a given command argument is a shell builtin.
- *        Returns 1 if it is a shell builtin, 0 otherwise.
  * @param arg (const char *) Command line argument to be checked.
+ * @return 1 if command is a shell builtin, 0 otherwise.
  */
 int is_builtin(const char *command);
 
@@ -38,10 +38,10 @@ void builtin_pwd(void);
 /**
  * @brief Handles the cd builtin command.
  *        Changes the current working directory, including basic ~ expansion.
- *        Returns 1 if the directory changes successfully, 0 otherwise.
  * @param pathbuf (char *) Buffer used when expanding paths like ~/...
  * @param pathbuf_size (size_t) Size of the path buffer.
  * @param arg (char *) Directory path argument passed to cd.
+ * @return 1 if the directory changes successfully, 0 otherwise.
  */
 int builtin_cd(char *pathbuf, size_t pathbuf_size, char *arg);
 

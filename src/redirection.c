@@ -11,9 +11,9 @@ static int is_stdin_redir(const char *arg);
 /**
  * @brief Extracts redirection operators from an argument list.
  *        Removes the redirect operator and filename from argv.
- *        Returns the new argument count, or -1 if the filename is missing.
  * @param argv (char *[]) Argument list to scan and modify.
  * @param redir (Redirection *) Stores info about stdout/stderr redirection filenames and whether to append.
+ * @return New argument count, or -1 if a redirection filename is missing.
  */
 int extract_redirs(char *argv[], Redirection *redir) {
     redir->in_file = NULL;
@@ -64,9 +64,9 @@ int extract_redirs(char *argv[], Redirection *redir) {
 
 /**
  * @brief Redirects the shell process stdout to a file.
- *        Returns a saved copy of stdout, or -1 if redirection fails.
  * @param out_file (const char *) File to redirect stdout into.
  * @param append (int) Whether to append instead of truncating the file.
+ * @return Saved stdout file descriptor, or -1 if redirection fails.
  */
 int redirect_stdout(const char *out_file, int append) {
   int flags = O_WRONLY | O_CREAT;
@@ -97,9 +97,9 @@ int redirect_stdout(const char *out_file, int append) {
 
 /**
  * @brief Redirects the shell process stderr to a file.
- *        Returns a saved copy of stderr, or -1 if redirection fails.
  * @param err_file (const char *) File to redirect stderr into.
  * @param append (int) Whether to append instead of truncating the file.
+ * @return Saved stderr file descriptor, or -1 if redirection fails.
  */
 int redirect_stderr(const char *err_file, int append) {
   int flags = O_WRONLY | O_CREAT;
@@ -130,8 +130,8 @@ int redirect_stderr(const char *err_file, int append) {
 
 /**
  * @brief Redirects the shell process stdin to a file.
- *        Returns a saved copy of stdin, or -1 if redirection fails.
  * @param in_file (const char *) File to redirect stdin from.
+ * @return Saved stdin file descriptor, or -1 if redirection fails.
  */
 int redirect_stdin(const char *in_file) {
   int saved_stdin = dup(STDIN_FILENO);
@@ -186,9 +186,9 @@ void restore_stdin(int saved_stdin) {
 /**
  * @brief Checks whether an argument is a stdout redirection operator.
  *        Supports >, 1>, >>, and 1>>.
- *        Returns 1 if it is a stdout redirect, 0 otherwise.
  * @param arg (const char *) Argument to check.
  * @param append (int *) Stores whether the redirect should append.
+ * @return 1 if arg is a stdout redirection operator, 0 otherwise.
  */
 static int is_stdout_redir(const char *arg, int *append) {
   if (strcmp(arg, ">") == 0 || strcmp(arg, "1>") == 0) {
@@ -205,9 +205,9 @@ static int is_stdout_redir(const char *arg, int *append) {
 /**
  * @brief Checks whether an argument is a stderr redirection operator.
  *        Supports 2> and 2>>.
- *        Returns 1 if it is a stderr redirect, 0 otherwise.
  * @param arg (const char *) Argument to check.
  * @param append (int *) Stores whether the redirect should append.
+ * @return 1 if arg is a stderr redirection operator, 0 otherwise.
  */
 static int is_stderr_redir(const char *arg, int *append) {
   if (strcmp(arg, "2>") == 0) {
@@ -223,8 +223,8 @@ static int is_stderr_redir(const char *arg, int *append) {
 
 /**
  * @brief Checks whether an argument is a stdin redirection operator, <.
- *        Returns 1 if it is a stdin redirect, 0 otherwise.
  * @param arg (const char *) Argument to check.
+ * @return 1 if arg is a stdin redirection operator, 0 otherwise.
  */
 static int is_stdin_redir(const char *arg) {
   if (strcmp(arg, "<") == 0)

@@ -7,8 +7,8 @@ void execute_pipeline(char *argv[]);
 
 /**
  * @brief Checks whether a given list of arguments has a pipeline command "|".
- *        Returns the index of the pipeline command, -1 if not found.
  * @param argv (char *[]) Tokenized command argument list.
+ * @return Index of the pipeline operator, or -1 if not found.
  */
 int find_pipeline_index(char *argv[]);
 
