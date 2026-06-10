@@ -96,8 +96,18 @@ int builtin_cd(char *pathbuf, size_t pathbuf_size, char *arg) {
     }
   }
 
+  char old_dir[COMMAND_SIZE];
+  char new_dir[COMMAND_SIZE];
+
+  getcwd(old_dir, sizeof(old_dir));
+
   if (chdir(arg) != 0)
     return 0;
+
+  getcwd(new_dir, sizeof(new_dir));
+  setenv("OLDPWD", old_dir, 1);
+  setenv("PWD", new_dir, 1);
+
   return 1;
 }
 
