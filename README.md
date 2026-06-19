@@ -12,6 +12,7 @@ Currently, the program supports the following features:
 * Handling single/double quotes
 * Tab autocompletion for builtin commands and executables in `$PATH`
 * Multiple pipelines
+* Environment variables expansion
 
 All builtins are stored in `src/builtins.c`, but only the follwing work:
 * `echo`
@@ -48,13 +49,20 @@ $ echo 'helloworld\n'
 helloworld\n
 $ 
 ```
+$ echo $PWD
+/
+$ cd bin
+$ echo $PWD
+/bin
+$ 
+```
 
 ## Limitations
 
 * Most of the arrays used are static; a particular amount of memory is allocated by the numbers defined in header files.
 Realistically, this should be more than enough space for processing most commands.
 * Arrow keys to move the cursor in the input are not supported since the input is processed character by character via `termios.h`.
-* More features such as environment variable expansion, history, and job control are to be added.
+* More features such as history, job control are to be added.
 
 ## References
 
