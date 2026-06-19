@@ -49,6 +49,8 @@ $ echo 'helloworld\n'
 helloworld\n
 $ 
 ```
+### Environment Variable Expansion
+```
 $ echo $PWD
 /
 $ cd bin
